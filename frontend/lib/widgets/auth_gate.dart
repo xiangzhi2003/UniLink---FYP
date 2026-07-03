@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/auth_provider.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
@@ -28,6 +29,14 @@ class _AuthGateState extends ConsumerState<AuthGate> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
+
+    // Reset back to the welcome landing page on sign-out, instead of
+    // reopening whichever of login/register was last shown.
+    ref.listen<AsyncValue<AuthState>>(authStateProvider, (previous, next) {
+      if (next.valueOrNull?.event == AuthChangeEvent.signedOut) {
+        setState(() => _view = _AuthView.welcome);
+      }
+    });
 
     return authState.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
