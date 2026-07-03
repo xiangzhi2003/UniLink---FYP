@@ -2,14 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
-import '../services/backend_service.dart';
 import '../services/profile_service.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
 final profileServiceProvider = Provider<ProfileService>((ref) => ProfileService());
-
-final backendServiceProvider = Provider<BackendService>((ref) => BackendService());
 
 /// Fires on every Supabase auth event (sign in, sign out, token refresh, ...).
 final authStateProvider = StreamProvider<AuthState>((ref) {

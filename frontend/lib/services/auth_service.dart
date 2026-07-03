@@ -20,4 +20,20 @@ class AuthService {
   Future<void> signOut() async {
     await supabase.auth.signOut();
   }
+
+  /// Sends a password-reset email. Supabase never reveals whether the email
+  /// is actually registered here — it "succeeds" either way — so the UI
+  /// shows one generic confirmation message regardless.
+  Future<void> sendPasswordResetEmail(String email) async {
+    await supabase.auth.resetPasswordForEmail(
+      email,
+      redirectTo: 'https://unilink-fyp-production.up.railway.app',
+    );
+  }
+
+  /// Sets a new password using the temporary session established after the
+  /// user taps the link from [sendPasswordResetEmail].
+  Future<void> updatePassword(String newPassword) async {
+    await supabase.auth.updateUser(UserAttributes(password: newPassword));
+  }
 }

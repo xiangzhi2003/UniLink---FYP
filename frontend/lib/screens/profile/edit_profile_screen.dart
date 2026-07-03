@@ -34,7 +34,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       await ref.read(profileServiceProvider).upsertProfile(
             UserProfile(
               id: user.id,
-              email: user.email!,
+              email: user.email!.toLowerCase(),
               fullName: _nameController.text.trim(),
               university: _universityController.text.trim(),
             ),

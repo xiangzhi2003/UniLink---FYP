@@ -7,9 +7,15 @@ import '../../widgets/info_banner.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   final VoidCallback onSwitchToRegister;
+  final VoidCallback onForgotPassword;
   final VoidCallback? onBack;
 
-  const LoginScreen({super.key, required this.onSwitchToRegister, this.onBack});
+  const LoginScreen({
+    super.key,
+    required this.onSwitchToRegister,
+    required this.onForgotPassword,
+    this.onBack,
+  });
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -31,35 +37,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
 
-    final email = _emailController.text.trim();
-
     try {
       await ref.read(authServiceProvider).signIn(
-            email: email,
+            email: _emailController.text.trim(),
             password: _passwordController.text,
           );
     } catch (e) {
-      final message = isInvalidCredentialsError(e)
-          ? await _describeInvalidCredentials(email)
-          : friendlyErrorMessage(e);
-      setState(() => _error = message);
+      setState(() => _error = friendlyErrorMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  /// Supabase returns one generic error for both "no such account" and
-  /// "wrong password" (an anti-enumeration measure). We ask the backend
-  /// which case it is so the message can be specific; if that check itself
-  /// fails (e.g. backend unreachable), fall back to the generic message.
-  Future<String> _describeInvalidCredentials(String email) async {
-    try {
-      final exists = await ref.read(backendServiceProvider).checkEmailExists(email);
-      return exists
-          ? 'Incorrect password — try again.'
-          : 'No account found with this email — check the address or register.';
-    } catch (_) {
-      return 'Incorrect email or password.';
     }
   }
 
@@ -109,7 +95,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               validator: (value) =>
                   (value == null || value.isEmpty) ? 'Enter your password' : null,
             ),
-            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: widget.onForgotPassword,
+                child: const Text('Forgot password?'),
+              ),
+            ),
+            const SizedBox(height: 8),
             const InfoBanner(
               text: 'UniLink is exclusively for verified university students. '
                   'Only .edu.my email addresses are accepted.',

@@ -64,7 +64,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         await ref.read(profileServiceProvider).upsertProfile(
               UserProfile(
                 id: user.id,
-                email: user.email ?? _emailController.text.trim(),
+                email: (user.email ?? _emailController.text.trim()).toLowerCase(),
                 fullName: _nameController.text.trim(),
                 university: _universityController.text.trim(),
               ),

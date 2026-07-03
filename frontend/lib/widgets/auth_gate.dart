@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/auth_provider.dart';
+import '../screens/auth/forgot_password_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
+import '../screens/auth/reset_password_screen.dart';
 import '../screens/auth/welcome_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 import '../screens/home/home_shell.dart';
 
-enum _AuthView { welcome, login, register }
+enum _AuthView { welcome, login, register, forgotPassword }
 
 /// Picks the right screen based on auth state:
 /// loading -> welcome -> (login|register) -> complete profile -> home.
@@ -42,6 +44,14 @@ class _AuthGateState extends ConsumerState<AuthGate> {
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (error, _) => Scaffold(body: Center(child: Text('Auth error: $error'))),
       data: (state) {
+        // Tapping the reset-password link opens the app with a temporary
+        // recovery session — route straight to the set-new-password screen.
+        // Once updatePassword succeeds the next auth event isn't
+        // passwordRecovery, so this stops applying and we fall through.
+        if (state.event == AuthChangeEvent.passwordRecovery) {
+          return const ResetPasswordScreen();
+        }
+
         final user = state.session?.user;
 
         if (user == null) {
@@ -59,7 +69,12 @@ class _AuthGateState extends ConsumerState<AuthGate> {
             case _AuthView.login:
               return LoginScreen(
                 onSwitchToRegister: () => setState(() => _view = _AuthView.register),
+                onForgotPassword: () => setState(() => _view = _AuthView.forgotPassword),
                 onBack: () => setState(() => _view = _AuthView.welcome),
+              );
+            case _AuthView.forgotPassword:
+              return ForgotPasswordScreen(
+                onBack: () => setState(() => _view = _AuthView.login),
               );
           }
         }
