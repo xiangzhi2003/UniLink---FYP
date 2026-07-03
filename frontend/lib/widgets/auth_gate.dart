@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/auth_provider.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
@@ -26,6 +27,15 @@ class _AuthGateState extends ConsumerState<AuthGate> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
 
+    // A real session (e.g. from tapping the confirmation link) supersedes
+    // the "just registered, no session yet" flag — clear it so a later
+    // sign-out doesn't get trapped back on the pending-verification screen.
+    ref.listen<AsyncValue<AuthState>>(authStateProvider, (previous, next) {
+      if (next.valueOrNull?.session?.user != null) {
+        ref.read(pendingConfirmationEmailProvider.notifier).state = null;
+      }
+    });
+
     return authState.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (error, _) => Scaffold(body: Center(child: Text('Auth error: $error'))),
@@ -33,6 +43,18 @@ class _AuthGateState extends ConsumerState<AuthGate> {
         final user = state.session?.user;
 
         if (user == null) {
+          final pendingEmail = ref.watch(pendingConfirmationEmailProvider);
+          if (pendingEmail != null) {
+            return VerifyEmailScreen(
+              email: pendingEmail,
+              hasSession: false,
+              onBackToLogin: () {
+                ref.read(pendingConfirmationEmailProvider.notifier).state = null;
+                setState(() => _view = _AuthView.login);
+              },
+            );
+          }
+
           switch (_view) {
             case _AuthView.welcome:
               return WelcomeScreen(
@@ -53,7 +75,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
         }
 
         if (user.emailConfirmedAt == null) {
-          return const VerifyEmailScreen();
+          return VerifyEmailScreen(email: user.email ?? '', hasSession: true);
         }
 
         final profileAsync = ref.watch(currentProfileProvider);

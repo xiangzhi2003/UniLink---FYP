@@ -27,8 +27,8 @@ The three defining "distinction" features are:
 | AI framework | LangChain + an LLM embedding model |
 | Payments | Stripe Connect — **TEST MODE ONLY** |
 | QR security | TOTP via `pyotp` |
-| Web hosting | Vercel |
-| Reverse proxy | Nginx (production only) |
+| Hosting | Railway (both the FastAPI backend and the Flutter web frontend) |
+| Reverse proxy | Nginx (serves the built Flutter web app in its Railway container) |
 | IDE | VS Code |
 
 ## Repository Structure

@@ -6,6 +6,12 @@ import '../services/profile_service.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
+/// Set right after a successful `signUp()` and read by [AuthGate]. Supabase's
+/// signUp doesn't create a session while "Confirm email" is required, so
+/// there's no auth-state change for the gate to react to — without this,
+/// tapping "Create account" looked like it did nothing at all.
+final pendingConfirmationEmailProvider = StateProvider<String?>((ref) => null);
+
 final profileServiceProvider = Provider<ProfileService>((ref) => ProfileService());
 
 /// Fires on every Supabase auth event (sign in, sign out, token refresh, ...).

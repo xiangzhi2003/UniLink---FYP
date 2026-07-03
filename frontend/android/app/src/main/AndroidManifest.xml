@@ -26,7 +26,7 @@
             </intent-filter>
             <!-- Deep link for Supabase email confirmation / password reset.
                  Tapping the link in the email opens this app directly instead
-                 of a browser page, so it works regardless of network/device. -->
+                 of a browser page. Only works if opened on this same phone. -->
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>

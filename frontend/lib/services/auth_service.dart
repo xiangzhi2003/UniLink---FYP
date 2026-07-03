@@ -9,9 +9,10 @@ class AuthService {
   bool get isEmailConfirmed => currentUser?.emailConfirmedAt != null;
 
   /// `emailRedirectTo` points at the app's own deep link (registered in
-  /// AndroidManifest.xml) instead of a web URL, so tapping the confirmation
-  /// link opens this app directly — no dependence on `localhost` or whichever
-  /// network the demo device happens to be on.
+  /// AndroidManifest.xml). Tapping the confirmation email on the same phone
+  /// that has the app installed opens it directly, and `supabase_flutter`
+  /// completes sign-in automatically — no separate page, no manual re-login.
+  /// Only works when the link is opened on that same phone.
   Future<void> signUp({required String email, required String password}) async {
     await supabase.auth.signUp(
       email: email,

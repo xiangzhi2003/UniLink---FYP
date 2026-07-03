@@ -32,11 +32,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _error = null;
     });
 
+    final email = _emailController.text.trim();
+
     try {
       await ref.read(authServiceProvider).signUp(
-            email: _emailController.text.trim(),
+            email: email,
             password: _passwordController.text,
           );
+      // No session is created while email confirmation is required, so
+      // AuthGate has nothing else to react to — tell it directly.
+      ref.read(pendingConfirmationEmailProvider.notifier).state = email;
     } catch (e) {
       setState(() => _error = friendlyErrorMessage(e));
     } finally {

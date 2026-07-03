@@ -1,11 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
+import '../../theme/app_theme.dart';
 import '../../utils/error_messages.dart';
-import '../../widgets/auth_scaffold.dart';
+import '../../widgets/auth_header_scaffold.dart';
 
 class VerifyEmailScreen extends ConsumerStatefulWidget {
-  const VerifyEmailScreen({super.key});
+  final String email;
+
+  /// True when there's an active (but unconfirmed) session — reachable if
+  /// "Confirm email" is off, or between confirming and re-logging-in. False
+  /// right after registering, when Supabase hasn't created a session yet.
+  final bool hasSession;
+
+  final VoidCallback? onBackToLogin;
+
+  const VerifyEmailScreen({
+    super.key,
+    required this.email,
+    required this.hasSession,
+    this.onBackToLogin,
+  });
 
   @override
   ConsumerState<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
@@ -16,12 +31,12 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
   String? _message;
 
   Future<void> _resend() async {
-    final email = ref.read(authServiceProvider).currentUser?.email;
-    if (email == null) return;
-
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _message = null;
+    });
     try {
-      await ref.read(authServiceProvider).resendConfirmationEmail(email);
+      await ref.read(authServiceProvider).resendConfirmationEmail(widget.email);
       setState(() => _message = 'Confirmation email sent again — check your inbox.');
     } catch (e) {
       setState(() => _message = friendlyErrorMessage(e));
@@ -57,35 +72,55 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final email = ref.watch(authServiceProvider).currentUser?.email ?? 'your email';
-
-    return AuthScaffold(
+    return AuthHeaderScaffold(
       title: 'Check your inbox',
-      subtitle: 'We sent a confirmation link to $email. Tap it, then come back here.',
+      subtitle: 'We sent a confirmation link to ${widget.email}',
+      onBack: widget.hasSession ? null : widget.onBackToLogin,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_message != null) ...[
-            Text(_message!, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-          ],
-          ElevatedButton(
-            onPressed: _loading ? null : _checkVerified,
-            child: _loading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
-                : const Text("I've confirmed — Continue"),
+          Center(
+            child: Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.gold.withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.mark_email_unread_outlined, size: 32, color: AppColors.gold),
+            ),
           ),
+          const SizedBox(height: 20),
+          Text(
+            'Tap the link in that email, then come back here — this screen will '
+            'move on by itself once your account is confirmed.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          if (_message != null) ...[
+            const SizedBox(height: 16),
+            Text(_message!, textAlign: TextAlign.center),
+          ],
+          const SizedBox(height: 24),
+          if (widget.hasSession)
+            ElevatedButton(
+              onPressed: _loading ? null : _checkVerified,
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text("I've confirmed — Continue"),
+            ),
+          const SizedBox(height: 8),
           TextButton(
             onPressed: _loading ? null : _resend,
             child: const Text('Resend email'),
           ),
           TextButton(
-            onPressed: _signOut,
-            child: const Text('Sign out'),
+            onPressed: widget.hasSession ? _signOut : widget.onBackToLogin,
+            child: Text(widget.hasSession ? 'Sign out' : 'Back to log in'),
           ),
         ],
       ),

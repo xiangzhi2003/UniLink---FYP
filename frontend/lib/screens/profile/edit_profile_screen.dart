@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/user_profile.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/error_messages.dart';
-import '../../widgets/auth_scaffold.dart';
+import '../../widgets/auth_header_scaffold.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -56,25 +56,28 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AuthScaffold(
+    return AuthHeaderScaffold(
       title: 'Complete your profile',
-      sealed: true,
-      subtitle: "You're verified. Add a couple of details before you start trading.",
+      subtitle: "You're verified — add a couple of details before you start trading",
       child: Form(
         key: _formKey,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text('FULL NAME', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 8),
             TextFormField(
               controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Full name'),
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.person_outline)),
               validator: (value) =>
                   (value == null || value.trim().isEmpty) ? 'Enter your name' : null,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
+            Text('UNIVERSITY', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 8),
             TextFormField(
               controller: _universityController,
-              decoration: const InputDecoration(labelText: 'University'),
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.school_outlined)),
               validator: (value) =>
                   (value == null || value.trim().isEmpty) ? 'Enter your university' : null,
             ),
@@ -83,15 +86,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _loading ? null : _save,
-              child: _loading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Text('Save and continue'),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _loading ? null : _save,
+                child: _loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Save and continue'),
+              ),
             ),
           ],
         ),
