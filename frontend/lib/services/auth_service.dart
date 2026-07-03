@@ -8,16 +8,15 @@ class AuthService {
 
   bool get isEmailConfirmed => currentUser?.emailConfirmedAt != null;
 
-  /// `emailRedirectTo` points at the app's own deep link (registered in
-  /// AndroidManifest.xml). Tapping the confirmation email on the same phone
-  /// that has the app installed opens it directly, and `supabase_flutter`
-  /// completes sign-in automatically — no separate page, no manual re-login.
-  /// Only works when the link is opened on that same phone.
+  /// `emailRedirectTo` points at the deployed web app (Railway). Tapping the
+  /// confirmation link on any device opens the real running app there, and
+  /// `supabase_flutter` picks up the confirmation tokens from the URL and
+  /// completes sign-in automatically — works everywhere, not just one phone.
   Future<void> signUp({required String email, required String password}) async {
     await supabase.auth.signUp(
       email: email,
       password: password,
-      emailRedirectTo: 'unilink://login-callback',
+      emailRedirectTo: 'https://unilink-fyp-production.up.railway.app',
     );
   }
 
@@ -33,7 +32,7 @@ class AuthService {
     await supabase.auth.resend(
       type: OtpType.signup,
       email: email,
-      emailRedirectTo: 'unilink://login-callback',
+      emailRedirectTo: 'https://unilink-fyp-production.up.railway.app',
     );
   }
 
