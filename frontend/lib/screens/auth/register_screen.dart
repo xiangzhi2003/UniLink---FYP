@@ -32,16 +32,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _error = null;
     });
 
-    final email = _emailController.text.trim();
-
     try {
       await ref.read(authServiceProvider).signUp(
-            email: email,
+            email: _emailController.text.trim(),
             password: _passwordController.text,
           );
-      // No session is created while email confirmation is required, so
-      // AuthGate has nothing else to react to — tell it directly.
-      ref.read(pendingConfirmationEmailProvider.notifier).state = email;
+      // Signing up creates a session immediately (no email confirmation
+      // required), so AuthGate reacts to the auth stream on its own and
+      // moves to profile setup — this notification is just feedback that
+      // the tap registered.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account created!')),
+        );
+      }
     } catch (e) {
       setState(() => _error = friendlyErrorMessage(e));
     } finally {
