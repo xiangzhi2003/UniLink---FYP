@@ -36,6 +36,10 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   http: ^1.2.0
+  supabase_flutter: ^2.8.0
+  flutter_riverpod: ^2.6.1
+  flutter_dotenv: ^5.2.1
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
@@ -60,6 +64,8 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
+  assets:
+    - .env
   # assets:
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
