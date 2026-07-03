@@ -58,7 +58,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Widget build(BuildContext context) {
     return AuthHeaderScaffold(
       title: 'Complete your profile',
-      subtitle: "You're verified — add a couple of details before you start trading",
+      subtitle: 'Just a couple of details before you start trading',
       child: Form(
         key: _formKey,
         child: Column(

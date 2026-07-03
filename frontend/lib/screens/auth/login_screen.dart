@@ -31,15 +31,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
 
+    final email = _emailController.text.trim();
+
     try {
       await ref.read(authServiceProvider).signIn(
-            email: _emailController.text.trim(),
+            email: email,
             password: _passwordController.text,
           );
     } catch (e) {
-      setState(() => _error = friendlyErrorMessage(e));
+      final message = isInvalidCredentialsError(e)
+          ? await _describeInvalidCredentials(email)
+          : friendlyErrorMessage(e);
+      setState(() => _error = message);
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Supabase returns one generic error for both "no such account" and
+  /// "wrong password" (an anti-enumeration measure). We ask the backend
+  /// which case it is so the message can be specific; if that check itself
+  /// fails (e.g. backend unreachable), fall back to the generic message.
+  Future<String> _describeInvalidCredentials(String email) async {
+    try {
+      final exists = await ref.read(backendServiceProvider).checkEmailExists(email);
+      return exists
+          ? 'Incorrect password — try again.'
+          : 'No account found with this email — check the address or register.';
+    } catch (_) {
+      return 'Incorrect email or password.';
     }
   }
 

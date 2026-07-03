@@ -1,5 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// True for Supabase's generic "wrong email or password" error — the one
+/// case ambiguous enough that login_screen.dart follows up with a backend
+/// check to tell the two apart.
+bool isInvalidCredentialsError(Object error) {
+  return error is AuthException &&
+      error.message.toLowerCase().contains('invalid login credentials');
+}
+
 /// Turns a Supabase (or other) exception into a message a student can act on,
 /// instead of the raw `AuthException(message: ..., statusCode: ..., code: ...)`
 /// text.
