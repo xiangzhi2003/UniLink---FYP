@@ -26,42 +26,47 @@ class AuthHeaderScaffold extends StatelessWidget {
         children: [
           SafeArea(
             bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    height: 40,
-                    child: onBack == null
-                        ? null
-                        : IconButton(
-                            tooltip: 'Back',
-                            onPressed: onBack,
-                            icon: const Icon(Icons.arrow_back, color: Colors.white),
-                            padding: EdgeInsets.zero,
-                            alignment: Alignment.centerLeft,
-                          ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        height: 40,
+                        child: onBack == null
+                            ? null
+                            : IconButton(
+                                tooltip: 'Back',
+                                onPressed: onBack,
+                                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                                padding: EdgeInsets.zero,
+                                alignment: Alignment.centerLeft,
+                              ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        title,
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineMedium
+                            ?.copyWith(color: Colors.white),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          subtitle!,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(color: Colors.white.withValues(alpha: 0.75)),
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    title,
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineMedium
-                        ?.copyWith(color: Colors.white),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      subtitle!,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: Colors.white.withValues(alpha: 0.75)),
-                    ),
-                  ],
-                ],
+                ),
               ),
             ),
           ),
