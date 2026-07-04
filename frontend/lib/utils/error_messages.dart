@@ -17,6 +17,8 @@ String friendlyErrorMessage(Object error) {
         return 'Too many attempts — please wait a minute and try again.';
       case 'validation_failed':
         return "That doesn't look like a valid email address.";
+      case 'otp_expired':
+        return 'This link has expired or was already used — request a new one.';
     }
 
     if (error.message.toLowerCase().contains('invalid login credentials')) {

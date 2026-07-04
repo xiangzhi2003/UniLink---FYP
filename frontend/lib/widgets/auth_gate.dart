@@ -9,6 +9,7 @@ import '../screens/auth/reset_password_screen.dart';
 import '../screens/auth/welcome_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 import '../screens/home/home_shell.dart';
+import '../utils/error_messages.dart';
 
 enum _AuthView { welcome, login, register, forgotPassword }
 
@@ -42,7 +43,27 @@ class _AuthGateState extends ConsumerState<AuthGate> {
 
     return authState.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, _) => Scaffold(body: Center(child: Text('Auth error: $error'))),
+      error: (error, _) => Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(friendlyErrorMessage(error), textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() => _view = _AuthView.welcome);
+                    ref.invalidate(authStateProvider);
+                  },
+                  child: const Text('Continue'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
       data: (state) {
         // Tapping the reset-password link opens the app with a temporary
         // recovery session — route straight to the set-new-password screen.
