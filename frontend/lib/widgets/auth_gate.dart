@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../config/supabase_config.dart';
 import '../providers/auth_provider.dart';
 import '../screens/auth/forgot_password_screen.dart';
 import '../screens/auth/login_screen.dart';
@@ -101,12 +102,13 @@ class _AuthGateState extends ConsumerState<AuthGate> {
               children: [
                 Text(friendlyErrorMessage(error), textAlign: TextAlign.center),
                 const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() => _view = _AuthView.welcome);
-                    ref.invalidate(authStateProvider);
-                  },
-                  child: const Text('Continue'),
+                // Not a button: the broken link/token is usually still in the
+                // URL, so retrying in place can just hit the same error
+                // again. Simplest reliable fix is a fresh visit to the site.
+                Text(
+                  'Please close this tab and open $webAppUrl again to continue.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),

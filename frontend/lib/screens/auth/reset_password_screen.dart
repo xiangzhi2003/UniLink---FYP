@@ -24,6 +24,11 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   bool _loading = false;
   String? _error;
 
+  Future<void> _cancel() async {
+    await clearRecoveryPending();
+    await ref.read(authServiceProvider).signOut();
+  }
+
   Future<void> _updatePassword() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -133,6 +138,13 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
                     : const Text('Update password'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton(
+                onPressed: _loading ? null : _cancel,
+                child: const Text('Cancel'),
               ),
             ),
           ],
