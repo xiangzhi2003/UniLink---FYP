@@ -5,6 +5,15 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # Flutter web registers a service worker that aggressively caches the
+    # app shell — without this, some browsers keep running an old deployed
+    # version indefinitely (until manually cleared) even after a fresh
+    # deploy, since these are exactly the files it uses to detect updates.
+    location ~* ^/(index\.html|flutter_bootstrap\.js|flutter_service_worker\.js|version\.json|main\.dart\.js)$ {
+        add_header Cache-Control "no-cache, must-revalidate";
+        try_files $uri =404;
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }
