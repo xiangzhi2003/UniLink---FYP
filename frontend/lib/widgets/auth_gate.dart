@@ -131,6 +131,20 @@ class _AuthGateState extends ConsumerState<AuthGate> {
           clearRecoveryPending();
         }
 
+        // Hold on RegisterScreen while its signUp()+upsertProfile() sequence
+        // is running. signUp() creates a session immediately, and without
+        // this check that alone would make `user` non-null right here and
+        // fall through to the profile check below — which would find no
+        // profile yet (upsertProfile hasn't finished) and briefly swap to
+        // the separate EditProfileScreen, even though the user is mid-way
+        // through filling in the exact same details on this screen already.
+        if (ref.watch(isRegisteringProvider)) {
+          return RegisterScreen(
+            onSwitchToLogin: () => setState(() => _view = _AuthView.login),
+            onBack: () => setState(() => _view = _AuthView.welcome),
+          );
+        }
+
         if (user == null) {
           switch (_view) {
             case _AuthView.welcome:

@@ -8,6 +8,15 @@ final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
 final profileServiceProvider = Provider<ProfileService>((ref) => ProfileService());
 
+/// True while register_screen.dart's signUp()+upsertProfile() sequence is
+/// running. signUp() creates a real session immediately, before the profile
+/// row is written — without this flag, AuthGate would react to that session
+/// the instant it appears and briefly show an empty "complete your profile"
+/// screen (currentProfileProvider correctly finds nothing yet), even though
+/// the user just finished filling that in. AuthGate holds a loading state
+/// instead of deciding anything while this is true.
+final isRegisteringProvider = StateProvider<bool>((ref) => false);
+
 /// Fires on every Supabase auth event (sign in, sign out, token refresh, ...).
 final authStateProvider = StreamProvider<AuthState>((ref) {
   return ref.watch(authServiceProvider).authStateChanges;

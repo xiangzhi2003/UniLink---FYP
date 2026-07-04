@@ -52,6 +52,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _loading = true;
       _error = null;
     });
+    // signUp() creates a session immediately, before the profile row below
+    // is written — this flag tells AuthGate to hold off deciding anything
+    // until the whole sequence finishes, so it never shows a momentary
+    // empty "complete your profile" screen for a profile that's about to
+    // exist anyway.
+    ref.read(isRegisteringProvider.notifier).state = true;
 
     try {
       await ref.read(authServiceProvider).signUp(
@@ -74,6 +80,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     } catch (e) {
       setState(() => _error = friendlyErrorMessage(e));
     } finally {
+      ref.read(isRegisteringProvider.notifier).state = false;
       if (mounted) setState(() => _loading = false);
     }
   }
