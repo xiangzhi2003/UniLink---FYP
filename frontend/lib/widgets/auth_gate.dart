@@ -29,15 +29,32 @@ class AuthGate extends ConsumerStatefulWidget {
 class _AuthGateState extends ConsumerState<AuthGate> {
   _AuthView _view = _AuthView.welcome;
 
+  // Sticky, not just "was the last event passwordRecovery" — a recovery
+  // link opened in one tab is broadcast to every other tab of the same
+  // browser (Supabase syncs session state across tabs), and a routine
+  // token refresh can follow shortly after. Checking only the latest event
+  // would let that refresh bump a tab that's mid-recovery straight to the
+  // signed-in home screen before the password was ever actually changed.
+  bool _inPasswordRecovery = false;
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
 
-    // Reset back to the welcome landing page on sign-out, instead of
-    // reopening whichever of login/register was last shown.
     ref.listen<AsyncValue<AuthState>>(authStateProvider, (previous, next) {
-      if (next.valueOrNull?.event == AuthChangeEvent.signedOut) {
-        setState(() => _view = _AuthView.welcome);
+      final event = next.valueOrNull?.event;
+      if (event == AuthChangeEvent.signedOut) {
+        // Reset back to the welcome landing page on sign-out, instead of
+        // reopening whichever of login/register was last shown.
+        setState(() {
+          _view = _AuthView.welcome;
+          _inPasswordRecovery = false;
+        });
+      } else if (event == AuthChangeEvent.passwordRecovery) {
+        setState(() => _inPasswordRecovery = true);
+      } else if (event == AuthChangeEvent.userUpdated && _inPasswordRecovery) {
+        // updatePassword() succeeded — release the gate.
+        setState(() => _inPasswordRecovery = false);
       }
     });
 
@@ -65,11 +82,10 @@ class _AuthGateState extends ConsumerState<AuthGate> {
         ),
       ),
       data: (state) {
-        // Tapping the reset-password link opens the app with a temporary
-        // recovery session — route straight to the set-new-password screen.
-        // Once updatePassword succeeds the next auth event isn't
-        // passwordRecovery, so this stops applying and we fall through.
-        if (state.event == AuthChangeEvent.passwordRecovery) {
+        // Tapping the reset-password link (in this tab or any other tab of
+        // the same browser) opens a recovery session — route straight to
+        // the set-new-password screen until updatePassword() completes.
+        if (_inPasswordRecovery) {
           return const ResetPasswordScreen();
         }
 
