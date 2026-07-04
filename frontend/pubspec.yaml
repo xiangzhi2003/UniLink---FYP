@@ -39,6 +39,7 @@ dependencies:
   flutter_riverpod: ^2.6.1
   flutter_dotenv: ^5.2.1
   google_fonts: ^6.2.1
+  shared_preferences: ^2.3.0
 
 dev_dependencies:
   flutter_test:

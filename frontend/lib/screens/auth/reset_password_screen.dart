@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/error_messages.dart';
+import '../../utils/recovery_flag.dart';
 import '../../widgets/auth_header_scaffold.dart';
 
 /// Shown when the app opens with an active password-recovery session (after
@@ -33,6 +34,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
     try {
       await ref.read(authServiceProvider).updatePassword(_passwordController.text);
+      await clearRecoveryPending();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Password updated')),

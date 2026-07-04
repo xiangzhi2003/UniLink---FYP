@@ -10,6 +10,7 @@ import '../screens/auth/welcome_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 import '../screens/home/home_shell.dart';
 import '../utils/error_messages.dart';
+import '../utils/recovery_flag.dart';
 
 enum _AuthView { welcome, login, register, forgotPassword }
 
@@ -35,7 +36,31 @@ class _AuthGateState extends ConsumerState<AuthGate> {
   // token refresh can follow shortly after. Checking only the latest event
   // would let that refresh bump a tab that's mid-recovery straight to the
   // signed-in home screen before the password was ever actually changed.
+  //
+  // This also has to survive a full page close/reopen, not just switching
+  // tabs — opening a recovery link authenticates the browser immediately,
+  // before any new password is typed, so a fresh app instance would
+  // otherwise see what looks like a completely normal signed-in session
+  // and show home. `recovery_flag.dart` persists it locally so a fresh
+  // load still knows to gate on the reset screen.
   bool _inPasswordRecovery = false;
+  bool _checkingPersistedRecoveryFlag = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPersistedRecoveryFlag();
+  }
+
+  Future<void> _loadPersistedRecoveryFlag() async {
+    final pending = await isRecoveryPending();
+    if (mounted) {
+      setState(() {
+        _inPasswordRecovery = pending;
+        _checkingPersistedRecoveryFlag = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,13 +75,20 @@ class _AuthGateState extends ConsumerState<AuthGate> {
           _view = _AuthView.welcome;
           _inPasswordRecovery = false;
         });
+        clearRecoveryPending();
       } else if (event == AuthChangeEvent.passwordRecovery) {
         setState(() => _inPasswordRecovery = true);
+        markRecoveryPending();
       } else if (event == AuthChangeEvent.userUpdated && _inPasswordRecovery) {
         // updatePassword() succeeded — release the gate.
         setState(() => _inPasswordRecovery = false);
+        clearRecoveryPending();
       }
     });
+
+    if (_checkingPersistedRecoveryFlag) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return authState.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
@@ -82,14 +114,20 @@ class _AuthGateState extends ConsumerState<AuthGate> {
         ),
       ),
       data: (state) {
-        // Tapping the reset-password link (in this tab or any other tab of
-        // the same browser) opens a recovery session — route straight to
-        // the set-new-password screen until updatePassword() completes.
-        if (_inPasswordRecovery) {
+        final user = state.session?.user;
+
+        // Tapping the reset-password link (in this tab, another tab of the
+        // same browser, or a fresh reload) opens a recovery session — route
+        // straight to the set-new-password screen until updatePassword()
+        // completes. Guard against a stale persisted flag with no real
+        // session behind it (e.g. it expired) by also requiring `user`.
+        if (_inPasswordRecovery && user != null) {
           return const ResetPasswordScreen();
         }
-
-        final user = state.session?.user;
+        if (_inPasswordRecovery && user == null) {
+          _inPasswordRecovery = false;
+          clearRecoveryPending();
+        }
 
         if (user == null) {
           switch (_view) {
