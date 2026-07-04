@@ -1,6 +1,46 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
+/// Tunable layout numbers for [AuthHeaderScaffold]. Edit these directly to
+/// nudge the header's proportions — each controls one visual thing.
+class _HeaderMetrics {
+  // Left/right padding of the header text block. Must equal
+  // [cardHorizontalPadding] or the title and the form fields below won't
+  // line up on the same left edge.
+  static const double headerHorizontalIndent = 20.0;
+
+  // Left/right padding of the card content (form). Kept equal to
+  // [headerHorizontalIndent] on purpose — see above.
+  static const double cardHorizontalPadding = 20.0;
+
+  // Max width of the header's own text/back-button column on wide web
+  // viewports. No effect on phones (always narrower than this).
+  static const double headerMaxContentWidth = 420.0;
+
+  // Explicit tap-target size for the back chevron, replacing Material's
+  // implicit 48px default so its geometry is predictable.
+  static const double backIconTapSize = 40.0;
+
+  // How far left the chevron glyph is nudged so its stroke lines up with
+  // the title's left edge instead of sitting inset inside its tap target.
+  // Raise if the chevron still looks too far right, lower if it overshoots.
+  static const double backIconVisualInset = 12.0;
+
+  // Vertical gap: back button row -> title.
+  static const double spacingBackToTitle = 8.0;
+
+  // Vertical gap: title -> subtitle.
+  static const double spacingTitleToSubtitle = 8.0;
+
+  // Vertical gap: subtitle (or title, if no subtitle) -> top of the white
+  // card. Raise for more breathing room, lower to bring the card up sooner.
+  static const double spacingSubtitleToCard = 24.0;
+
+  // Top padding used instead of a fake reserved back-button height on
+  // screens that don't show a back button.
+  static const double noBackButtonTopInset = 8.0;
+}
+
 /// Two-tone auth layout: a navy header (optional back button, title,
 /// subtitle) over a rounded-top paper card holding the form. Used by the
 /// welcome/login/register screens so the auth flow reads as one piece.
@@ -26,42 +66,67 @@ class AuthHeaderScaffold extends StatelessWidget {
         children: [
           SafeArea(
             bottom: false,
-            child: Center(
+            child: Align(
+              alignment: Alignment.centerLeft,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
+                constraints: const BoxConstraints(
+                  maxWidth: _HeaderMetrics.headerMaxContentWidth,
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                  padding: const EdgeInsets.fromLTRB(
+                    _HeaderMetrics.headerHorizontalIndent,
+                    8,
+                    _HeaderMetrics.headerHorizontalIndent,
+                    _HeaderMetrics.spacingSubtitleToCard,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(
-                        height: 40,
-                        child: onBack == null
-                            ? null
-                            : IconButton(
-                                tooltip: 'Back',
-                                onPressed: onBack,
-                                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                                padding: EdgeInsets.zero,
-                                alignment: Alignment.centerLeft,
+                      if (onBack != null)
+                        SizedBox(
+                          height: _HeaderMetrics.backIconTapSize,
+                          child: Transform.translate(
+                            offset: const Offset(
+                              -_HeaderMetrics.backIconVisualInset,
+                              0,
+                            ),
+                            child: IconButton(
+                              tooltip: 'Back',
+                              onPressed: onBack,
+                              icon: const Icon(
+                                Icons.arrow_back,
+                                color: Colors.white,
                               ),
-                      ),
-                      const SizedBox(height: 4),
+                              padding: EdgeInsets.zero,
+                              alignment: Alignment.centerLeft,
+                              constraints: const BoxConstraints(
+                                minWidth: _HeaderMetrics.backIconTapSize,
+                                minHeight: _HeaderMetrics.backIconTapSize,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        const SizedBox(
+                          height: _HeaderMetrics.noBackButtonTopInset,
+                        ),
+                      const SizedBox(height: _HeaderMetrics.spacingBackToTitle),
                       Text(
                         title,
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineMedium
+                        style: Theme.of(context).textTheme.headlineMedium
                             ?.copyWith(color: Colors.white),
                       ),
                       if (subtitle != null) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(
+                          height: _HeaderMetrics.spacingTitleToSubtitle,
+                        ),
                         Text(
                           subtitle!,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(color: Colors.white.withValues(alpha: 0.75)),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.75),
+                          ),
                         ),
                       ],
                     ],
@@ -83,7 +148,12 @@ class AuthHeaderScaffold extends StatelessWidget {
               child: SafeArea(
                 top: false,
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+                  padding: const EdgeInsets.fromLTRB(
+                    _HeaderMetrics.cardHorizontalPadding,
+                    32,
+                    _HeaderMetrics.cardHorizontalPadding,
+                    24,
+                  ),
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 420),

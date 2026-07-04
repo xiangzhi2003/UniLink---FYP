@@ -39,7 +39,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      await ref.read(authServiceProvider).signIn(
+      await ref
+          .read(authServiceProvider)
+          .signIn(
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
@@ -70,7 +72,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           children: [
             Semantics(
               label: 'University email',
-              child: Text('UNIVERSITY EMAIL', style: Theme.of(context).textTheme.labelLarge),
+              child: Text(
+                'UNIVERSITY EMAIL',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
             ),
             const SizedBox(height: 8),
             TextFormField(
@@ -93,7 +98,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const SizedBox(height: 20),
             Semantics(
               label: 'Password',
-              child: Text('PASSWORD', style: Theme.of(context).textTheme.labelLarge),
+              child: Text(
+                'PASSWORD',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
             ),
             const SizedBox(height: 8),
             TextFormField(
@@ -103,14 +111,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
                   tooltip: _obscurePassword ? 'Show password' : 'Hide password',
-                  icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  onPressed:
+                      () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                 ),
               ),
               // Only checks non-empty (not length) — an existing account's
               // password could predate any length rule register.dart enforces.
-              validator: (value) =>
-                  (value == null || value.isEmpty) ? 'Enter your password' : null,
+              validator:
+                  (value) =>
+                      (value == null || value.isEmpty)
+                          ? 'Enter your password'
+                          : null,
             ),
             Align(
               alignment: Alignment.centerRight,
@@ -121,32 +138,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             const SizedBox(height: 8),
             const InfoBanner(
-              text: 'UniLink is exclusively for verified university students. '
+              text:
+                  'UniLink is exclusively for verified university students. '
                   'Only .edu.my email addresses are accepted.',
             ),
             if (_error != null) ...[
               const SizedBox(height: 16),
-              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ],
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _loading ? null : _login,
-                child: _loading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('Sign In'),
-                          SizedBox(width: 8),
-                          Icon(Icons.arrow_forward, size: 18),
-                        ],
-                      ),
+                child:
+                    _loading
+                        ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                        : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Sign In'),
+                            SizedBox(width: 8),
+                            Icon(Icons.arrow_forward, size: 18),
+                          ],
+                        ),
               ),
             ),
             const SizedBox(height: 8),
@@ -160,7 +185,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       TextSpan(text: 'New student? '),
                       TextSpan(
                         text: 'Create account',
-                        style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F2A4A)),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F2A4A),
+                        ),
                       ),
                     ],
                   ),

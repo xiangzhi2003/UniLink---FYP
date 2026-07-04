@@ -53,3 +53,6 @@ backend/**/__pycache__/
 
 # Flutter env secrets
 frontend/.env
+
+# Local Claude Code tooling config (machine-specific, not project code)
+.claude/
