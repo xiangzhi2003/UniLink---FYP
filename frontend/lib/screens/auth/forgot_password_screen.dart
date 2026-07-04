@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/error_messages.dart';
+import '../../utils/validators.dart';
 import '../../widgets/auth_header_scaffold.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
@@ -83,7 +84,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('UNIVERSITY EMAIL', style: Theme.of(context).textTheme.labelLarge),
+          Semantics(
+            label: 'University email',
+            child: Text('UNIVERSITY EMAIL', style: Theme.of(context).textTheme.labelLarge),
+          ),
           const SizedBox(height: 8),
           TextFormField(
             controller: _emailController,
@@ -92,8 +96,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               hintText: 'you@student.university.edu.my',
               prefixIcon: Icon(Icons.mail_outline),
             ),
-            validator: (value) =>
-                (value == null || value.trim().isEmpty) ? 'Enter your email' : null,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Enter your email';
+              }
+              if (!isValidUniversityEmail(value)) {
+                return 'Only .edu.my university emails are allowed';
+              }
+              return null;
+            },
           ),
           if (_error != null) ...[
             const SizedBox(height: 16),

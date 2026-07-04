@@ -113,7 +113,7 @@ class WelcomeScreen extends StatelessWidget {
                     Text(
                       'Only for verified .edu.my students',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.45),
+                            color: Colors.white.withValues(alpha: 0.7),
                           ),
                     ),
                   ],

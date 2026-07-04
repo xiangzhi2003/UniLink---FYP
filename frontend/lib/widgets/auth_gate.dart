@@ -103,7 +103,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
         final profileAsync = ref.watch(currentProfileProvider);
         return profileAsync.when(
           loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-          error: (error, _) => Scaffold(body: Center(child: Text('Profile error: $error'))),
+          error: (error, _) => Scaffold(body: Center(child: Text(friendlyErrorMessage(error)))),
           data: (profile) => profile == null ? const EditProfileScreen() : const HomeShell(),
         );
       },

@@ -36,6 +36,7 @@ class AuthHeaderScaffold extends StatelessWidget {
                     child: onBack == null
                         ? null
                         : IconButton(
+                            tooltip: 'Back',
                             onPressed: onBack,
                             icon: const Icon(Icons.arrow_back, color: Colors.white),
                             padding: EdgeInsets.zero,

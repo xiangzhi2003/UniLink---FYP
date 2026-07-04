@@ -103,7 +103,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('UNIVERSITY EMAIL', style: Theme.of(context).textTheme.labelLarge),
+            Semantics(
+              label: 'University email',
+              child: Text('UNIVERSITY EMAIL', style: Theme.of(context).textTheme.labelLarge),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _emailController,
@@ -123,7 +126,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               },
             ),
             const SizedBox(height: 20),
-            Text('PASSWORD', style: Theme.of(context).textTheme.labelLarge),
+            Semantics(
+              label: 'Password',
+              child: Text('PASSWORD', style: Theme.of(context).textTheme.labelLarge),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _passwordController,
@@ -132,6 +138,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 helperText: 'At least 6 characters',
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
+                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                   icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                   onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                 ),
@@ -144,7 +151,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               },
             ),
             const SizedBox(height: 20),
-            Text('CONFIRM PASSWORD', style: Theme.of(context).textTheme.labelLarge),
+            Semantics(
+              label: 'Confirm password',
+              child: Text('CONFIRM PASSWORD', style: Theme.of(context).textTheme.labelLarge),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _confirmPasswordController,
@@ -152,6 +162,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
+                  tooltip: _obscureConfirmPassword ? 'Show password' : 'Hide password',
                   icon: Icon(
                     _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                   ),
@@ -225,7 +236,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('FULL NAME', style: Theme.of(context).textTheme.labelLarge),
+            Semantics(
+              label: 'Full name',
+              child: Text('FULL NAME', style: Theme.of(context).textTheme.labelLarge),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _nameController,
@@ -234,7 +248,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   (value == null || value.trim().isEmpty) ? 'Enter your name' : null,
             ),
             const SizedBox(height: 20),
-            Text('UNIVERSITY', style: Theme.of(context).textTheme.labelLarge),
+            Semantics(
+              label: 'University',
+              child: Text('UNIVERSITY', style: Theme.of(context).textTheme.labelLarge),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _universityController,

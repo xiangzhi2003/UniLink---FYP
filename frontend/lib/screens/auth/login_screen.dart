@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/error_messages.dart';
+import '../../utils/validators.dart';
 import '../../widgets/auth_header_scaffold.dart';
 import '../../widgets/info_banner.dart';
 
@@ -67,7 +68,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('UNIVERSITY EMAIL', style: Theme.of(context).textTheme.labelLarge),
+            Semantics(
+              label: 'University email',
+              child: Text('UNIVERSITY EMAIL', style: Theme.of(context).textTheme.labelLarge),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _emailController,
@@ -76,11 +80,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 hintText: 'you@student.university.edu.my',
                 prefixIcon: Icon(Icons.mail_outline),
               ),
-              validator: (value) =>
-                  (value == null || value.trim().isEmpty) ? 'Enter your email' : null,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Enter your email';
+                }
+                if (!isValidUniversityEmail(value)) {
+                  return 'Only .edu.my university emails are allowed';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 20),
-            Text('PASSWORD', style: Theme.of(context).textTheme.labelLarge),
+            Semantics(
+              label: 'Password',
+              child: Text('PASSWORD', style: Theme.of(context).textTheme.labelLarge),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _passwordController,
@@ -88,10 +102,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
+                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                   icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                   onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                 ),
               ),
+              // Only checks non-empty (not length) — an existing account's
+              // password could predate any length rule register.dart enforces.
               validator: (value) =>
                   (value == null || value.isEmpty) ? 'Enter your password' : null,
             ),

@@ -23,8 +23,11 @@ It talks to the FastAPI backend over HTTP and to Supabase via the Supabase Flutt
   - `config/` — Supabase init, backend base URL, environment values
 - **No secrets in code.** The backend base URL and Supabase anon key live in
   `config/`. Never hardcode private keys in the Flutter app.
-- **API layer:** all backend calls go through `services/api_service.dart` with a
-  single configurable base URL so we can switch between local dev and deployed.
+- **API layer:** when a screen needs the FastAPI backend (not just Supabase),
+  route it through a dedicated file in `services/` with a single configurable
+  base URL — screens never call HTTP directly. No such file exists yet since
+  nothing has needed the backend beyond auth (which goes straight to
+  Supabase); add one when a real backend call is needed (Sprint 2+).
 
 ## Key packages (add as needed, don't over-install upfront)
 
@@ -38,12 +41,19 @@ It talks to the FastAPI backend over HTTP and to Supabase via the Supabase Flutt
 | State management | `provider` or `flutter_riverpod` |
 | Cached images | `cached_network_image` |
 
-## Sprint-1 first screens
-- `auth/register` — must reject non-`.edu.my` emails before even calling Supabase
+## Sprint-1 screens (done)
+- `auth/welcome` — landing screen (Get Started / I already have an account)
+- `auth/register` — two-step wizard (account details, then profile); rejects
+  non-`.edu.my` emails client-side before ever calling Supabase; the account
+  is only created once both steps are filled in
 - `auth/login`
-- `auth/verify_email`
-- `profile/edit_profile`
-- a home shell with navigation
+- `auth/forgot_password` / `auth/reset_password` — email a reset link,
+  completed on whichever device opens it (no confirmation-email step exists;
+  it was deliberately dropped — `.edu.my` domain gating is the only check)
+- `profile/edit_profile` — also doubles as `AuthGate`'s fallback for a
+  signed-in user with no profile row yet
+- `home/home_shell` — placeholder home with responsive nav; real marketplace
+  content is Sprint 2
 
 ## Watch out for
 - **QR + camera on web:** `mobile_scanner` behaves differently on web vs mobile.

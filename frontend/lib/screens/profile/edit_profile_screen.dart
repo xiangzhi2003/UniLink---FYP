@@ -64,7 +64,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('FULL NAME', style: Theme.of(context).textTheme.labelLarge),
+            Semantics(
+              label: 'Full name',
+              child: Text('FULL NAME', style: Theme.of(context).textTheme.labelLarge),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _nameController,
@@ -73,7 +76,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   (value == null || value.trim().isEmpty) ? 'Enter your name' : null,
             ),
             const SizedBox(height: 20),
-            Text('UNIVERSITY', style: Theme.of(context).textTheme.labelLarge),
+            Semantics(
+              label: 'University',
+              child: Text('UNIVERSITY', style: Theme.of(context).textTheme.labelLarge),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _universityController,
@@ -97,6 +103,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
                     : const Text('Save and continue'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton(
+                onPressed: _loading ? null : () => ref.read(authServiceProvider).signOut(),
+                child: const Text('Sign out'),
               ),
             ),
           ],

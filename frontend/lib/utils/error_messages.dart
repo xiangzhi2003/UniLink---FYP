@@ -25,11 +25,12 @@ String friendlyErrorMessage(Object error) {
       return 'Incorrect email or password.';
     }
 
-    return error.message;
+    // Unmatched codes fall through to the generic message below rather than
+    // surfacing Supabase's raw internal text to the user.
   }
 
   if (error is PostgrestException) {
-    return error.message;
+    // Same reasoning — don't leak raw Postgres/Postgrest error text.
   }
 
   return 'Something went wrong. Please try again.';

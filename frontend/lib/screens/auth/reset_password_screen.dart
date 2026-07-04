@@ -62,7 +62,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('NEW PASSWORD', style: Theme.of(context).textTheme.labelLarge),
+            Semantics(
+              label: 'New password',
+              child: Text('NEW PASSWORD', style: Theme.of(context).textTheme.labelLarge),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _passwordController,
@@ -71,6 +74,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 helperText: 'At least 6 characters',
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
+                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                   icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                   onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                 ),
@@ -83,7 +87,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               },
             ),
             const SizedBox(height: 20),
-            Text('CONFIRM PASSWORD', style: Theme.of(context).textTheme.labelLarge),
+            Semantics(
+              label: 'Confirm password',
+              child: Text('CONFIRM PASSWORD', style: Theme.of(context).textTheme.labelLarge),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _confirmPasswordController,
@@ -91,6 +98,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
+                  tooltip: _obscureConfirmPassword ? 'Show password' : 'Hide password',
                   icon: Icon(
                     _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                   ),

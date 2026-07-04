@@ -74,7 +74,10 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-## First task
-Create `main.py` with CORS enabled and a single `GET /health` returning
-`{"status": "ok"}`. Confirm it runs on `http://localhost:8000/health` before
-anything else. The Flutter app will call this to prove the bridge works.
+## Current state (done)
+`main.py` has CORS enabled, a `GET /` root route, and `GET /health` returning
+`{"status": "ok"}` — deployed on Railway. This proved the Flutter-backend
+bridge works; nothing beyond health-check exists yet. Auth (Sprint 1) talks
+directly to Supabase from the Flutter app, not through this backend — the
+routers/services/models structure above is scaffolding for Sprint 3's actual
+features (QR, escrow, RAG search), not yet built.
