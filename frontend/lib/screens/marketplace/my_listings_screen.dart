@@ -34,12 +34,16 @@ class MyListingsScreenState extends ConsumerState<MyListingsScreen> {
   }
 
   void reload() {
-    setState(() => _listingsFuture = _fetch());
+    setState(() {
+      _listingsFuture = _fetch();
+    });
   }
 
   Future<void> _onRefresh() async {
     final future = _fetch();
-    setState(() => _listingsFuture = future);
+    setState(() {
+      _listingsFuture = future;
+    });
     await future;
   }
 

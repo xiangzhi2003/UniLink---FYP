@@ -42,12 +42,16 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
   /// Also called by HomeShell after a new listing is published so the grid
   /// shows it without a manual pull-to-refresh.
   void reload() {
-    setState(() => _listingsFuture = _fetch());
+    setState(() {
+      _listingsFuture = _fetch();
+    });
   }
 
   Future<void> _onRefresh() async {
     final future = _fetch();
-    setState(() => _listingsFuture = future);
+    setState(() {
+      _listingsFuture = future;
+    });
     await future;
   }
 
