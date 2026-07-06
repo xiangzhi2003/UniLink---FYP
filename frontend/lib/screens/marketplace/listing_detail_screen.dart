@@ -1,22 +1,28 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/listing.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/transaction_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/error_messages.dart';
+import '../transactions/transaction_detail_screen.dart';
 
-/// Full listing view: photo gallery, all details, seller row, and
-/// placeholder actions (messaging and escrow arrive in Sprint 3).
-class ListingDetailScreen extends StatefulWidget {
+/// Full listing view: photo gallery, all details, seller row, and actions
+/// (Buy/Book starts a deal → QR handshake; messaging arrives in Sprint 3D).
+class ListingDetailScreen extends ConsumerStatefulWidget {
   final Listing listing;
 
   const ListingDetailScreen({super.key, required this.listing});
 
   @override
-  State<ListingDetailScreen> createState() => _ListingDetailScreenState();
+  ConsumerState<ListingDetailScreen> createState() => _ListingDetailScreenState();
 }
 
-class _ListingDetailScreenState extends State<ListingDetailScreen> {
+class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
   final _pageController = PageController();
   int _currentPhoto = 0;
+  bool _booking = false;
 
   @override
   void dispose() {
@@ -28,6 +34,37 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$feature is coming in Sprint 3 — stay tuned!')),
     );
+  }
+
+  Future<void> _startDeal() async {
+    final listing = widget.listing;
+    final myId = ref.read(authServiceProvider).currentUser?.id;
+
+    if (myId == listing.sellerId) {
+      _comingSoonSnack("That's your own listing.");
+      return;
+    }
+
+    setState(() => _booking = true);
+    try {
+      final dealId = await ref.read(transactionServiceProvider).createTransaction(
+            listingId: listing.id!,
+            sellerId: listing.sellerId,
+            type: listing.listingType,
+          );
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => TransactionDetailScreen(dealId: dealId)),
+      );
+    } catch (e) {
+      if (mounted) _comingSoonSnack(friendlyErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _booking = false);
+    }
+  }
+
+  void _comingSoonSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -183,9 +220,14 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () =>
-                            _comingSoon(isRent ? 'Booking with escrow' : 'Buying with escrow'),
-                        icon: const Icon(Icons.shield_outlined, size: 18),
+                        onPressed: _booking ? null : _startDeal,
+                        icon: _booking
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.shield_outlined, size: 18),
                         label: Text(isRent ? 'Book' : 'Buy'),
                       ),
                     ),

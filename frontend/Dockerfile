@@ -15,9 +15,11 @@ COPY . .
 ARG SUPABASE_URL
 ARG SUPABASE_ANON_KEY
 ARG WEB_APP_URL
+ARG BACKEND_URL
 RUN echo "SUPABASE_URL=$SUPABASE_URL" > .env && \
     echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> .env && \
-    echo "WEB_APP_URL=$WEB_APP_URL" >> .env
+    echo "WEB_APP_URL=$WEB_APP_URL" >> .env && \
+    echo "BACKEND_URL=$BACKEND_URL" >> .env
 
 RUN flutter build web --release
 

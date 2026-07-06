@@ -40,13 +40,14 @@ marketplace_application/
 │   ├── lib/                   # ALL app source code lives here
 │   │   ├── main.dart          # App entry point
 │   │   ├── config/            # Supabase init, env config
-│   │   ├── models/            # Data classes (e.g. UserProfile)
-│   │   ├── providers/         # Riverpod state providers (e.g. auth state)
+│   │   ├── models/            # Data classes (UserProfile, Listing)
+│   │   ├── providers/         # Riverpod state providers (auth state, listing service)
 │   │   ├── screens/
 │   │   │   ├── auth/          # welcome, login, register, forgot/reset password
-│   │   │   ├── home/          # home shell (placeholder, Sprint 2 target)
-│   │   │   └── profile/       # edit profile
-│   │   ├── services/          # External calls (Supabase auth, profile service)
+│   │   │   ├── home/          # tabbed shell: Marketplace / My Listings / Profile
+│   │   │   ├── marketplace/   # browse, create/edit listing, listing detail, my listings
+│   │   │   └── profile/       # edit profile (first-time completion gate)
+│   │   ├── services/          # External calls (Supabase auth, profile, listings)
 │   │   ├── theme/             # App-wide colors, typography (AppTheme, AppColors)
 │   │   ├── utils/             # Validators, error messages, recovery-flag storage
 │   │   └── widgets/           # Shared UI (AuthGate, AuthHeaderScaffold, etc.)
@@ -79,11 +80,21 @@ only targets Android, iOS, and Web.
 - FastAPI backend deployed on Railway with only a health-check route — auth talks
   directly to Supabase from Flutter, not through the backend yet.
 
-**Sprint 2 — Marketplace: not started.** Next up: create listing (sale/rent),
-browse grid, listing detail, categories/filters, keyword search, my-listings
-management.
+**Sprint 2 — Marketplace: done.**
+- Create listing (sale/rent toggle, 1–5 photos uploaded to Supabase Storage).
+- Browse grid with category filter chips, responsive 2/3/4 columns, pull-to-refresh.
+- Listing detail with photo gallery; placeholder Buy/Book + Message Seller buttons
+  (real versions arrive in Sprint 3).
+- Basic keyword search (temporary — replaced by RAG search in Sprint 3C).
+- My-listings: edit, mark sold/rented/unavailable, delete (with confirmation).
+- `listings` table + `listing-images` storage bucket added to Supabase, both RLS-protected.
+- Still nothing calls the FastAPI backend — auth and listings both talk directly to
+  Supabase from Flutter. The backend starts mattering in Sprint 3 (see below).
 
 **Sprint 3 — Magic (QR handshake, escrow, RAG search, messaging): not started.**
+This is where the FastAPI backend actually starts doing work: TOTP code
+generation/verification (3A), Stripe secret-key operations (3B), and embedding/Pinecone
+calls (3C) all have to run server-side, not in the Flutter client.
 
 **Sprint 4 — Polish (reviews, rental dashboard, admin panel): not started.**
 

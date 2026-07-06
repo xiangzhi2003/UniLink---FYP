@@ -1,0 +1,67 @@
+class TransactionDeal {
+  final String id;
+  final String listingId;
+  final String buyerId;
+  final String sellerId;
+  final String type; // sale | rent
+  final String status; // pending | active | completed | cancelled
+  final DateTime? pickupScannedAt;
+  final DateTime? returnScannedAt;
+  final String escrowStatus; // pending | held | captured | refunded (Sprint 3B)
+  final DateTime createdAt;
+
+  // Joined display fields (not columns on transactions):
+  final String? listingTitle;
+  final List<String> listingImages;
+  final String? buyerName;
+  final String? sellerName;
+
+  const TransactionDeal({
+    required this.id,
+    required this.listingId,
+    required this.buyerId,
+    required this.sellerId,
+    required this.type,
+    required this.status,
+    this.pickupScannedAt,
+    this.returnScannedAt,
+    required this.escrowStatus,
+    required this.createdAt,
+    this.listingTitle,
+    this.listingImages = const [],
+    this.buyerName,
+    this.sellerName,
+  });
+
+  /// Which leg of the handshake is next: 'pickup' until the item changes
+  /// hands, then 'return' for rentals.
+  String get phase => pickupScannedAt == null ? 'pickup' : 'return';
+
+  factory TransactionDeal.fromJson(Map<String, dynamic> json) {
+    final listing = json['listings'] as Map<String, dynamic>?;
+    final buyer = json['buyer'] as Map<String, dynamic>?;
+    final seller = json['seller'] as Map<String, dynamic>?;
+    return TransactionDeal(
+      id: json['id'] as String,
+      listingId: json['listing_id'] as String,
+      buyerId: json['buyer_id'] as String,
+      sellerId: json['seller_id'] as String,
+      type: json['type'] as String,
+      status: json['status'] as String,
+      pickupScannedAt: json['pickup_scanned_at'] == null
+          ? null
+          : DateTime.parse(json['pickup_scanned_at'] as String),
+      returnScannedAt: json['return_scanned_at'] == null
+          ? null
+          : DateTime.parse(json['return_scanned_at'] as String),
+      escrowStatus: json['escrow_status'] as String? ?? 'pending',
+      createdAt: DateTime.parse(json['created_at'] as String),
+      listingTitle: listing?['title'] as String?,
+      listingImages: listing == null
+          ? const []
+          : (listing['image_urls'] as List<dynamic>?)?.cast<String>() ?? const [],
+      buyerName: buyer?['full_name'] as String?,
+      sellerName: seller?['full_name'] as String?,
+    );
+  }
+}

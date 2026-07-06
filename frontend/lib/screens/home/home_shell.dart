@@ -7,9 +7,10 @@ import '../../widgets/stamp_mark.dart';
 import '../marketplace/browse_screen.dart';
 import '../marketplace/create_listing_screen.dart';
 import '../marketplace/my_listings_screen.dart';
+import '../transactions/transactions_list_screen.dart';
 
-/// Signed-in shell: Marketplace / My Listings / Profile tabs with a bottom
-/// nav bar on phones and a side rail on wide screens, plus the global
+/// Signed-in shell: Marketplace / Deals / My Listings / Profile tabs with a
+/// bottom nav bar on phones and a side rail on wide screens, plus the global
 /// "Sell an item" action.
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
@@ -22,13 +23,17 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   int _tab = 0;
 
   final _browseKey = GlobalKey<BrowseScreenState>();
+  final _dealsKey = GlobalKey<TransactionsListScreenState>();
   final _myListingsKey = GlobalKey<MyListingsScreenState>();
 
   bool _signingOut = false;
   String? _error;
 
+  static const _profileTabIndex = 3;
+
   static const _destinations = [
     (icon: Icons.storefront_outlined, selectedIcon: Icons.storefront, label: 'Marketplace'),
+    (icon: Icons.handshake_outlined, selectedIcon: Icons.handshake, label: 'Deals'),
     (icon: Icons.sell_outlined, selectedIcon: Icons.sell, label: 'My Listings'),
     (icon: Icons.person_outline, selectedIcon: Icons.person, label: 'Profile'),
   ];
@@ -112,7 +117,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   Widget build(BuildContext context) {
     final body = switch (_tab) {
       0 => BrowseScreen(key: _browseKey),
-      1 => MyListingsScreen(key: _myListingsKey),
+      1 => TransactionsListScreen(key: _dealsKey),
+      2 => MyListingsScreen(key: _myListingsKey),
       _ => _buildProfileTab(context),
     };
 
@@ -122,7 +128,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
         return Scaffold(
           appBar: AppBar(title: const Text('UniLink')),
-          floatingActionButton: _tab == 2
+          floatingActionButton: _tab == _profileTabIndex
               ? null
               : FloatingActionButton.extended(
                   onPressed: _openCreateListing,
