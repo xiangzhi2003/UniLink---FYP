@@ -30,8 +30,31 @@ class ListingService {
     return urls;
   }
 
-  Future<void> createListing(Listing listing) async {
-    await supabase.from('listings').insert(listing.toInsertJson());
+  /// Inserts the listing and returns its new id (so the caller can index it
+  /// for semantic search).
+  Future<String> createListing(Listing listing) async {
+    final row =
+        await supabase.from('listings').insert(listing.toInsertJson()).select('id').single();
+    return row['id'] as String;
+  }
+
+  /// Fetch active listings for the given ids, preserving the order of [ids]
+  /// (used to keep RAG search results in relevance order).
+  Future<List<Listing>> fetchListingsByIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    final rows = await supabase
+        .from('listings')
+        .select('*, profiles(full_name)')
+        .inFilter('id', ids)
+        .eq('status', 'active');
+    final byId = {
+      for (final row in rows as List<dynamic>)
+        (row as Map<String, dynamic>)['id'] as String: Listing.fromJson(row),
+    };
+    return [
+      for (final id in ids)
+        if (byId[id] != null) byId[id]!,
+    ];
   }
 
   /// Active listings for the browse grid, newest first, with the seller's

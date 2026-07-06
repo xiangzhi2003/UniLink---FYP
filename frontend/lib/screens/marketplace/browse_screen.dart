@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/listing.dart';
 import '../../providers/listing_provider.dart';
+import '../../providers/transaction_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/error_messages.dart';
 import '../../widgets/listing_card.dart';
 import 'listing_detail_screen.dart';
 
-/// Marketplace home: category tabs + keyword search over a responsive grid
-/// of active listings. The keyword search is the temporary fallback until
-/// Sprint 3C's RAG search replaces it.
+/// Marketplace home: category tabs + AI (RAG) semantic search over a
+/// responsive grid of active listings. When a query is present it goes to the
+/// backend's Gemini+Pinecone search; otherwise it's the plain category browse.
 class BrowseScreen extends ConsumerStatefulWidget {
   const BrowseScreen({super.key});
 
@@ -32,11 +33,16 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
     _listingsFuture = _fetch();
   }
 
-  Future<List<Listing>> _fetch() {
-    return ref.read(listingServiceProvider).fetchActiveListings(
-          category: _selectedTab == 'All' ? null : _selectedTab,
-          query: _query,
-        );
+  Future<List<Listing>> _fetch() async {
+    // No query -> plain category browse. With a query -> semantic search
+    // across all categories (relevance beats category filtering here).
+    if (_query.trim().isEmpty) {
+      return ref.read(listingServiceProvider).fetchActiveListings(
+            category: _selectedTab == 'All' ? null : _selectedTab,
+          );
+    }
+    final ids = await ref.read(backendServiceProvider).searchListings(_query.trim());
+    return ref.read(listingServiceProvider).fetchListingsByIds(ids);
   }
 
   /// Also called by HomeShell after a new listing is published so the grid
@@ -93,6 +99,19 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
                 _listingsFuture = _fetch();
               });
             },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 6, 16, 0),
+          child: Row(
+            children: [
+              const Icon(Icons.auto_awesome, size: 13, color: AppColors.gold),
+              const SizedBox(width: 4),
+              Text(
+                'AI Search — try describing what you need',
+                style: TextStyle(color: AppColors.slate, fontSize: 11),
+              ),
+            ],
           ),
         ),
         SizedBox(

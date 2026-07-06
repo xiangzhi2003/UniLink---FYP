@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/listing.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/listing_provider.dart';
+import '../../providers/transaction_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/error_messages.dart';
 import '../../widgets/listing_card.dart';
@@ -91,6 +92,10 @@ class MyListingsScreenState extends ConsumerState<MyListingsScreen> {
 
     try {
       await ref.read(listingServiceProvider).deleteListing(listing);
+      // Best-effort: drop its search vector too (orphan vectors are harmless).
+      try {
+        await ref.read(backendServiceProvider).deleteListingVector(listing.id!);
+      } catch (_) {}
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Listing deleted')),

@@ -72,4 +72,20 @@ class BackendService {
     final json = await _post('/escrow/refund', {'transaction_id': transactionId});
     return json['escrow_status'] as String;
   }
+
+  /// Index a listing for semantic search (call after create/update).
+  Future<void> embedListing(String listingId) async {
+    await _post('/search/embed-listing', {'listing_id': listingId});
+  }
+
+  /// Remove a listing's vector (call after delete).
+  Future<void> deleteListingVector(String listingId) async {
+    await _post('/search/delete-listing', {'listing_id': listingId});
+  }
+
+  /// Semantic search — returns listing ids, most relevant first.
+  Future<List<String>> searchListings(String query) async {
+    final json = await _post('/search/query', {'query': query});
+    return (json['listing_ids'] as List<dynamic>).cast<String>();
+  }
 }

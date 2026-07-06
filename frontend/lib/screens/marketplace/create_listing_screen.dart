@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../models/listing.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/listing_provider.dart';
+import '../../providers/transaction_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/error_messages.dart';
 
@@ -135,13 +136,20 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
         imageUrls: [..._existingUrls, ...uploadedUrls],
       );
 
+      final String listingId;
       if (_isEditing) {
-        await ref
-            .read(listingServiceProvider)
-            .updateListing(widget.existing!.id!, listing);
+        listingId = widget.existing!.id!;
+        await ref.read(listingServiceProvider).updateListing(listingId, listing);
       } else {
-        await ref.read(listingServiceProvider).createListing(listing);
+        listingId = await ref.read(listingServiceProvider).createListing(listing);
       }
+
+      // Index for semantic search — best-effort: a failed embed shouldn't
+      // block publishing (the listing still exists, just isn't searchable
+      // until re-indexed).
+      try {
+        await ref.read(backendServiceProvider).embedListing(listingId);
+      } catch (_) {}
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
