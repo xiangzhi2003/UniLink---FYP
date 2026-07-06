@@ -54,4 +54,22 @@ class BackendService {
       message: json['message'] as String,
     );
   }
+
+  /// Start escrow payment — returns the Stripe Checkout URL to open.
+  Future<String> createEscrowCheckout(String transactionId) async {
+    final json = await _post('/escrow/create', {'transaction_id': transactionId});
+    return json['checkout_url'] as String;
+  }
+
+  /// Sync whether the payment is now held (call after returning from Checkout).
+  Future<String> confirmEscrow(String transactionId) async {
+    final json = await _post('/escrow/confirm', {'transaction_id': transactionId});
+    return json['escrow_status'] as String;
+  }
+
+  /// Cancel the deal and release the hold (before pickup only).
+  Future<String> refundEscrow(String transactionId) async {
+    final json = await _post('/escrow/refund', {'transaction_id': transactionId});
+    return json['escrow_status'] as String;
+  }
 }

@@ -9,7 +9,7 @@ from models.qr import (
     QrVerifyRequest,
     QrVerifyResponse,
 )
-from services import totp_service
+from services import escrow_service, totp_service
 from services.auth import current_user_id
 from services.supabase_client import get_service_client
 
@@ -100,12 +100,15 @@ async def qr_verify(
         client.table("transactions").update(
             {"pickup_scanned_at": now, "status": new_status, "updated_at": now}
         ).eq("id", payload.transaction_id).execute()
-        # NOTE (Sprint 3B): if type == 'sale', capture escrow here.
+        # For a sale the handover is now complete -> release the held escrow.
+        if txn["type"] == "sale":
+            escrow_service.capture(payload.transaction_id)
         return QrVerifyResponse(status=new_status, phase="pickup", message="Pickup confirmed!")
 
-    # Return leg (rentals only) -> completed.
+    # Return leg (rentals only) -> completed. The rental is over, so this is
+    # where the held escrow is released to the seller.
     client.table("transactions").update(
         {"return_scanned_at": now, "status": "completed", "updated_at": now}
     ).eq("id", payload.transaction_id).execute()
-    # NOTE (Sprint 3B): capture escrow here for rentals.
+    escrow_service.capture(payload.transaction_id)
     return QrVerifyResponse(status="completed", phase="return", message="Return confirmed!")

@@ -8,10 +8,12 @@ class TransactionDeal {
   final DateTime? pickupScannedAt;
   final DateTime? returnScannedAt;
   final String escrowStatus; // pending | held | captured | refunded (Sprint 3B)
+  final String? checkoutSessionId; // set once the buyer starts Stripe Checkout
   final DateTime createdAt;
 
   // Joined display fields (not columns on transactions):
   final String? listingTitle;
+  final double? listingPrice;
   final List<String> listingImages;
   final String? buyerName;
   final String? sellerName;
@@ -26,8 +28,10 @@ class TransactionDeal {
     this.pickupScannedAt,
     this.returnScannedAt,
     required this.escrowStatus,
+    this.checkoutSessionId,
     required this.createdAt,
     this.listingTitle,
+    this.listingPrice,
     this.listingImages = const [],
     this.buyerName,
     this.sellerName,
@@ -55,8 +59,10 @@ class TransactionDeal {
           ? null
           : DateTime.parse(json['return_scanned_at'] as String),
       escrowStatus: json['escrow_status'] as String? ?? 'pending',
+      checkoutSessionId: json['stripe_checkout_session_id'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       listingTitle: listing?['title'] as String?,
+      listingPrice: listing?['price'] == null ? null : (listing!['price'] as num).toDouble(),
       listingImages: listing == null
           ? const []
           : (listing['image_urls'] as List<dynamic>?)?.cast<String>() ?? const [],

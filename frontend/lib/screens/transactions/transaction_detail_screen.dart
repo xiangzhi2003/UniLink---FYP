@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/transaction.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/transaction_provider.dart';
@@ -25,16 +26,33 @@ class TransactionDetailScreen extends ConsumerStatefulWidget {
 
 class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScreen> {
   late Future<TransactionDeal> _future;
+  bool _busy = false;
 
   @override
   void initState() {
     super.initState();
-    _future = ref.read(transactionServiceProvider).fetchDeal(widget.dealId);
+    _future = _loadAndSync();
+  }
+
+  /// Fetch the deal; if a Checkout was started but escrow still reads
+  /// 'pending', ask the backend to sync (the buyer may have just paid in the
+  /// browser) and fetch once more.
+  Future<TransactionDeal> _loadAndSync() async {
+    var deal = await ref.read(transactionServiceProvider).fetchDeal(widget.dealId);
+    if (deal.escrowStatus == 'pending' && deal.checkoutSessionId != null) {
+      try {
+        await ref.read(backendServiceProvider).confirmEscrow(widget.dealId);
+        deal = await ref.read(transactionServiceProvider).fetchDeal(widget.dealId);
+      } catch (_) {
+        // Non-fatal — show whatever we have.
+      }
+    }
+    return deal;
   }
 
   void _reload() {
     setState(() {
-      _future = ref.read(transactionServiceProvider).fetchDeal(widget.dealId);
+      _future = _loadAndSync();
     });
   }
 
@@ -43,7 +61,16 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
     final myId = ref.read(authServiceProvider).currentUser?.id;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Deal')),
+      appBar: AppBar(
+        title: const Text('Deal'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh),
+            onPressed: _busy ? null : _reload,
+          ),
+        ],
+      ),
       body: FutureBuilder<TransactionDeal>(
         future: _future,
         builder: (context, snapshot) {
@@ -81,8 +108,13 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
                   ),
                   const SizedBox(height: 20),
                   _statusBanner(deal),
-                  const SizedBox(height: 24),
-                  _handshakeSection(context, deal, iAmSeller, iAmBuyer),
+                  const SizedBox(height: 16),
+                  _escrowSection(context, deal, iAmBuyer),
+                  const SizedBox(height: 8),
+                  // The handover handshake only unlocks once the payment is
+                  // safely held in escrow.
+                  if (deal.escrowStatus == 'held')
+                    _handshakeSection(context, deal, iAmSeller, iAmBuyer),
                 ],
               ),
             ),
@@ -90,6 +122,123 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
         },
       ),
     );
+  }
+
+  Widget _escrowSection(BuildContext context, TransactionDeal deal, bool iAmBuyer) {
+    final amount = deal.listingPrice == null
+        ? ''
+        : 'RM ${deal.listingPrice!.toStringAsFixed(2)}';
+
+    final (label, detail, color, icon) = switch (deal.escrowStatus) {
+      'pending' => (
+          'Payment required',
+          iAmBuyer
+              ? 'Pay $amount to hold safely in escrow. The seller only gets '
+                  'paid once you confirm the handover.'
+              : 'Waiting for the buyer to pay into escrow.',
+          AppColors.goldDeep,
+          Icons.lock_clock_outlined,
+        ),
+      'held' => (
+          'Payment held in escrow',
+          '$amount is held safely. It\'s released to the seller once the '
+              '${deal.type == 'rent' ? 'return' : 'pickup'} is confirmed.',
+          AppColors.ink,
+          Icons.shield_outlined,
+        ),
+      'captured' => (
+          'Payment released',
+          '$amount has been released to the seller. Deal complete.',
+          AppColors.verified,
+          Icons.verified_outlined,
+        ),
+      _ => (
+          'Payment refunded',
+          'The hold was released — the buyer was not charged.',
+          AppColors.slate,
+          Icons.undo_outlined,
+        ),
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(detail, style: const TextStyle(color: AppColors.slate, height: 1.4)),
+          if (iAmBuyer && deal.escrowStatus == 'pending') ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _busy ? null : () => _pay(deal),
+                icon: const Icon(Icons.credit_card, size: 18),
+                label: Text('Pay $amount'),
+              ),
+            ),
+          ],
+          // Cancel + refund is allowed by either party while held and before pickup.
+          if (deal.escrowStatus == 'held' && deal.pickupScannedAt == null) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _busy ? null : () => _refund(deal),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                  side: BorderSide(color: Theme.of(context).colorScheme.error),
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: const Text('Cancel deal & refund'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pay(TransactionDeal deal) async {
+    setState(() => _busy = true);
+    try {
+      final url = await ref.read(backendServiceProvider).createEscrowCheckout(deal.id);
+      final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      if (!ok && mounted) _snack('Could not open the payment page.');
+    } catch (e) {
+      if (mounted) _snack(friendlyErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+    // When they come back, refresh to pick up the held status.
+    if (mounted) _reload();
+  }
+
+  Future<void> _refund(TransactionDeal deal) async {
+    setState(() => _busy = true);
+    try {
+      await ref.read(backendServiceProvider).refundEscrow(deal.id);
+      if (mounted) _snack('Deal cancelled — payment refunded.');
+    } catch (e) {
+      if (mounted) _snack(friendlyErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+    if (mounted) _reload();
   }
 
   Widget _statusBanner(TransactionDeal deal) {

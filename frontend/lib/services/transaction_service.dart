@@ -5,7 +5,7 @@ class TransactionService {
   // Disambiguate the two FKs to profiles (buyer_id / seller_id) with the
   // `profiles!<column>` hint so PostgREST knows which relationship to join.
   static const _select =
-      '*, listings(title, image_urls), buyer:profiles!buyer_id(full_name), seller:profiles!seller_id(full_name)';
+      '*, listings(title, price, image_urls), buyer:profiles!buyer_id(full_name), seller:profiles!seller_id(full_name)';
 
   /// Creates a deal for [listingId] with the current user as buyer. Returns
   /// the new transaction id. (Payment is inserted before this in Sprint 3B.)
