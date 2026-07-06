@@ -3,13 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/listing.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/chat_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/error_messages.dart';
+import '../chat/chat_detail_screen.dart';
 import '../transactions/transaction_detail_screen.dart';
 
 /// Full listing view: photo gallery, all details, seller row, and actions
-/// (Buy/Book starts a deal → QR handshake; messaging arrives in Sprint 3D).
+/// (Buy/Book starts a deal → QR handshake; Message Seller opens a chat).
 class ListingDetailScreen extends ConsumerStatefulWidget {
   final Listing listing;
 
@@ -28,12 +30,6 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
-  }
-
-  void _comingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature is coming in Sprint 3 — stay tuned!')),
-    );
   }
 
   Future<void> _startDeal() async {
@@ -65,6 +61,33 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
 
   void _comingSoonSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _messageSeller() async {
+    final listing = widget.listing;
+    final myId = ref.read(authServiceProvider).currentUser?.id;
+    if (myId == listing.sellerId) {
+      _comingSoonSnack("That's your own listing.");
+      return;
+    }
+
+    try {
+      final convoId = await ref.read(chatServiceProvider).getOrCreateConversation(
+            listingId: listing.id!,
+            sellerId: listing.sellerId,
+          );
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ChatDetailScreen(
+            conversationId: convoId,
+            title: listing.sellerName ?? 'Seller',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) _comingSoonSnack(friendlyErrorMessage(e));
+    }
   }
 
   @override
@@ -235,7 +258,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: () => _comingSoon('In-app messaging'),
+                        onPressed: _messageSeller,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.ink,
                           side: const BorderSide(color: AppColors.ink),
