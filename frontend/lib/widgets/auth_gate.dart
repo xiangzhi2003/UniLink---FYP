@@ -11,6 +11,7 @@ import '../screens/auth/reset_password_screen.dart';
 import '../screens/auth/welcome_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 import '../screens/home/home_shell.dart';
+import '../screens/web/web_landing_page.dart';
 import '../theme/app_tokens.dart';
 import '../utils/error_messages.dart';
 import '../utils/recovery_flag.dart';
@@ -110,9 +111,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
     }
 
     if (_recoveryJustCompleted) {
-      return _RecoveryCompleteScreen(
-        onDone: () => setState(() => _recoveryJustCompleted = false),
-      );
+      return const _RecoveryCompleteScreen();
     }
 
     return authState.when(
@@ -211,11 +210,11 @@ class _AuthGateState extends ConsumerState<AuthGate> {
 ///
 /// Has its own explicit way forward (rather than relying on the browser's
 /// back button, whose behavior here depends on how the email link was
-/// opened — new tab vs. same tab — and isn't something this app controls).
+/// opened — new tab vs. same tab — and isn't something this app controls):
+/// "Back to UniLink" replaces this route with the marketing landing page,
+/// not the mobile app's login flow.
 class _RecoveryCompleteScreen extends StatelessWidget {
-  final VoidCallback onDone;
-
-  const _RecoveryCompleteScreen({required this.onDone});
+  const _RecoveryCompleteScreen();
 
   @override
   Widget build(BuildContext context) {
@@ -233,7 +232,12 @@ class _RecoveryCompleteScreen extends StatelessWidget {
                 variant: StatusVariant.success,
                 action: SizedBox(
                   width: double.infinity,
-                  child: PrimaryButton(label: 'Back to UniLink', onPressed: onDone),
+                  child: PrimaryButton(
+                    label: 'Back to UniLink',
+                    onPressed: () => Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => const WebLandingPage()),
+                    ),
+                  ),
                 ),
               ),
             ),
