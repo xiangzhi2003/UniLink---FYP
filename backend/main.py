@@ -17,7 +17,7 @@ app = FastAPI(title="UniLink API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://unilink-fyp-production.up.railway.app",
+        "https://unilink-fyp-production-a474.up.railway.app",
         "http://localhost:5000",
     ],
     allow_methods=["*"],
