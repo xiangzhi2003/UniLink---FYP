@@ -4,9 +4,12 @@ import '../../models/listing.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/listing_provider.dart';
 import '../../providers/transaction_provider.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/app_tokens.dart';
 import '../../utils/error_messages.dart';
+import '../../widgets/async_state_view.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/listing_card.dart';
+import '../../widgets/status_chip.dart';
 import 'create_listing_screen.dart';
 import 'listing_detail_screen.dart';
 
@@ -116,47 +119,19 @@ class MyListingsScreenState extends ConsumerState<MyListingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Listing>>(
-      future: _listingsFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                friendlyErrorMessage(snapshot.error!),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          );
-        }
-
-        final listings = snapshot.data ?? [];
-        if (listings.isEmpty) {
-          return RefreshIndicator(
-            onRefresh: _onRefresh,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [
-                SizedBox(height: 120),
-                Icon(Icons.sell_outlined, size: 56, color: AppColors.slate),
-                SizedBox(height: 12),
-                Text(
-                  "You haven't listed anything yet.\nTap \"Sell an item\" to get started!",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.slate),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return RefreshIndicator(
-          onRefresh: _onRefresh,
-          child: LayoutBuilder(
+    return RefreshIndicator(
+      onRefresh: _onRefresh,
+      child: AsyncStateView<List<Listing>>(
+        future: _listingsFuture,
+        loadingSkeleton: const GridSkeleton(crossAxisCount: 2, itemCount: 6),
+        isEmpty: (listings) => listings.isEmpty,
+        emptyState: const EmptyState(
+          icon: Icons.sell_outlined,
+          title: "You haven't listed anything yet",
+          message: 'Tap "Sell an item" to get started!',
+        ),
+        builder: (context, listings) {
+          return LayoutBuilder(
             builder: (context, constraints) {
               final columns = constraints.maxWidth >= 900
                   ? 4
@@ -168,8 +143,8 @@ class MyListingsScreenState extends ConsumerState<MyListingsScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: columns,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
+                  mainAxisSpacing: AppSpacing.md,
+                  crossAxisSpacing: AppSpacing.md,
                   childAspectRatio: 0.62,
                 ),
                 itemCount: listings.length,
@@ -187,12 +162,12 @@ class MyListingsScreenState extends ConsumerState<MyListingsScreen> {
                       children: [
                         _statusChip(listing.status),
                         SizedBox(
-                          height: 28,
-                          width: 28,
+                          height: 44,
+                          width: 44,
                           child: PopupMenuButton<String>(
                             tooltip: 'Listing actions',
                             padding: EdgeInsets.zero,
-                            iconSize: 18,
+                            iconSize: 20,
                             onSelected: (action) {
                               switch (action) {
                                 case 'edit':
@@ -233,29 +208,19 @@ class MyListingsScreenState extends ConsumerState<MyListingsScreen> {
                 },
               );
             },
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
   Widget _statusChip(String status) {
-    final (label, color) = switch (status) {
-      'active' => ('Active', AppColors.verified),
-      'sold' => ('Sold', AppColors.slate),
-      'rented' => ('Rented', AppColors.goldDeep),
-      _ => ('Unavailable', AppColors.slate),
+    final (label, variant) = switch (status) {
+      'active' => ('Active', StatusVariant.success),
+      'sold' => ('Sold', StatusVariant.neutral),
+      'rented' => ('Rented', StatusVariant.warning),
+      _ => ('Unavailable', StatusVariant.neutral),
     };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
-      ),
-    );
+    return StatusChip(label: label, variant: variant);
   }
 }

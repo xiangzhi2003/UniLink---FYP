@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/user_profile.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/error_messages.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_text_field.dart';
 import '../../widgets/auth_header_scaffold.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -18,6 +20,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _universityController = TextEditingController();
   bool _loading = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill when reached from the Profile screen's "Edit profile" action
+    // on an already-complete profile; stays blank for AuthGate's first-time
+    // fallback since there's no profile to read yet.
+    final profile = ref.read(currentProfileProvider).valueOrNull;
+    if (profile != null) {
+      _nameController.text = profile.fullName ?? '';
+      _universityController.text = profile.university ?? '';
+    }
+  }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
@@ -64,26 +79,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Semantics(
+            LabeledTextField(
               label: 'Full name',
-              child: Text('FULL NAME', style: Theme.of(context).textTheme.labelLarge),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
               controller: _nameController,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.person_outline)),
+              prefixIcon: const Icon(Icons.person_outline),
               validator: (value) =>
                   (value == null || value.trim().isEmpty) ? 'Enter your name' : null,
             ),
             const SizedBox(height: 20),
-            Semantics(
+            LabeledTextField(
               label: 'University',
-              child: Text('UNIVERSITY', style: Theme.of(context).textTheme.labelLarge),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
               controller: _universityController,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.school_outlined)),
+              prefixIcon: const Icon(Icons.school_outlined),
               validator: (value) =>
                   (value == null || value.trim().isEmpty) ? 'Enter your university' : null,
             ),
@@ -92,18 +99,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _loading ? null : _save,
-                child: _loading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Save and continue'),
-              ),
+            PrimaryButton(
+              label: 'Save and continue',
+              isLoading: _loading,
+              onPressed: _loading ? null : _save,
             ),
             const SizedBox(height: 8),
             Center(

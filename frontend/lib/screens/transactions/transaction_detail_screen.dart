@@ -2,14 +2,19 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/transaction.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/transaction_provider.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/app_fonts.dart';
+import '../../theme/app_tokens.dart';
 import '../../utils/error_messages.dart';
+import '../../widgets/async_state_view.dart';
+import '../../widgets/status_banner.dart';
+import '../../widgets/status_chip.dart';
 import 'qr_scan_screen.dart';
 
 /// One deal: shows the QR-handshake control appropriate to (my role, current
@@ -62,7 +67,15 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Deal'),
+        title: FutureBuilder<TransactionDeal>(
+          future: _future,
+          builder: (context, snapshot) {
+            return Text(
+              snapshot.data?.listingTitle ?? 'Deal',
+              overflow: TextOverflow.ellipsis,
+            );
+          },
+        ),
         actions: [
           IconButton(
             tooltip: 'Refresh',
@@ -71,22 +84,10 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
           ),
         ],
       ),
-      body: FutureBuilder<TransactionDeal>(
+      body: AsyncStateView<TransactionDeal>(
         future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(friendlyErrorMessage(snapshot.error!), textAlign: TextAlign.center),
-              ),
-            );
-          }
-
-          final deal = snapshot.data!;
+        onRetry: _reload,
+        builder: (context, deal) {
           final iAmSeller = deal.sellerId == myId;
           final iAmBuyer = deal.buyerId == myId;
 
@@ -94,7 +95,7 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 520),
               child: ListView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(AppSpacing.xxl),
                 children: [
                   Text(
                     deal.listingTitle ?? 'Listing',
@@ -104,13 +105,13 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
                   Text(
                     '${deal.type == 'rent' ? 'Rental' : 'Purchase'} · '
                     '${iAmSeller ? 'you are selling' : 'you are buying'}',
-                    style: const TextStyle(color: AppColors.slate),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppSpacing.xl),
                   _statusBanner(deal),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.lg),
                   _escrowSection(context, deal, iAmBuyer),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   // The handover handshake only unlocks once the payment is
                   // safely held in escrow.
                   if (deal.escrowStatus == 'held')
@@ -129,87 +130,71 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
         ? ''
         : 'RM ${deal.listingPrice!.toStringAsFixed(2)}';
 
-    final (label, detail, color, icon) = switch (deal.escrowStatus) {
+    final (label, detail, variant, icon) = switch (deal.escrowStatus) {
       'pending' => (
           'Payment required',
           iAmBuyer
               ? 'Pay $amount to hold safely in escrow. The seller only gets '
                   'paid once you confirm the handover.'
               : 'Waiting for the buyer to pay into escrow.',
-          AppColors.goldDeep,
+          StatusVariant.warning,
           Icons.lock_clock_outlined,
         ),
       'held' => (
           'Payment held in escrow',
           '$amount is held safely. It\'s released to the seller once the '
               '${deal.type == 'rent' ? 'return' : 'pickup'} is confirmed.',
-          AppColors.ink,
+          StatusVariant.info,
           Icons.shield_outlined,
         ),
       'captured' => (
           'Payment released',
           '$amount has been released to the seller. Deal complete.',
-          AppColors.verified,
+          StatusVariant.success,
           Icons.verified_outlined,
         ),
       _ => (
           'Payment refunded',
           'The hold was released — the buyer was not charged.',
-          AppColors.slate,
+          StatusVariant.neutral,
           Icons.undo_outlined,
         ),
     };
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 20),
-              const SizedBox(width: 8),
-              Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(detail, style: const TextStyle(color: AppColors.slate, height: 1.4)),
-          if (iAmBuyer && deal.escrowStatus == 'pending') ...[
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _busy ? null : () => _pay(deal),
-                icon: const Icon(Icons.credit_card, size: 18),
-                label: Text('Pay $amount'),
-              ),
+    final showPayButton = iAmBuyer && deal.escrowStatus == 'pending';
+    final showRefundButton = deal.escrowStatus == 'held' && deal.pickupScannedAt == null;
+
+    return StatusBanner(
+      icon: icon,
+      title: label,
+      detail: detail,
+      variant: variant,
+      action: !showPayButton && !showRefundButton
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (showPayButton)
+                  ElevatedButton.icon(
+                    onPressed: _busy ? null : () => _pay(deal),
+                    icon: const Icon(Icons.credit_card, size: 18),
+                    label: Text('Pay $amount'),
+                  ),
+                if (showRefundButton) ...[
+                  if (showPayButton) const SizedBox(height: AppSpacing.sm),
+                  OutlinedButton(
+                    onPressed: _busy ? null : () => _refund(deal),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.error,
+                      side: BorderSide(color: Theme.of(context).colorScheme.error),
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                    ),
+                    child: const Text('Cancel deal & refund'),
+                  ),
+                ],
+              ],
             ),
-          ],
-          // Cancel + refund is allowed by either party while held and before pickup.
-          if (deal.escrowStatus == 'held' && deal.pickupScannedAt == null) ...[
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: _busy ? null : () => _refund(deal),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.error,
-                  side: BorderSide(color: Theme.of(context).colorScheme.error),
-                  minimumSize: const Size.fromHeight(48),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                child: const Text('Cancel deal & refund'),
-              ),
-            ),
-          ],
-        ],
-      ),
     );
   }
 
@@ -242,37 +227,33 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
   }
 
   Widget _statusBanner(TransactionDeal deal) {
-    final (label, detail, color) = switch (deal.status) {
+    final (label, detail, variant, icon) = switch (deal.status) {
       'pending' => (
           'Awaiting pickup',
           'Meet up, then confirm the handover with the QR code below.',
-          AppColors.goldDeep,
+          StatusVariant.warning,
+          Icons.schedule_outlined,
         ),
       'active' => (
           'Rental in progress',
           'Item picked up. Confirm the return with the QR code when it comes back.',
-          AppColors.ink,
+          StatusVariant.info,
+          Icons.autorenew,
         ),
-      'completed' => ('Completed', 'This deal is done. Thanks for trading safely!', AppColors.verified),
-      _ => ('Cancelled', 'This deal was cancelled.', AppColors.slate),
+      'completed' => (
+          'Completed',
+          'This deal is done. Thanks for trading safely!',
+          StatusVariant.success,
+          Icons.check_circle_outline,
+        ),
+      _ => (
+          'Cancelled',
+          'This deal was cancelled.',
+          StatusVariant.neutral,
+          Icons.cancel_outlined,
+        ),
     };
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 16)),
-          const SizedBox(height: 4),
-          Text(detail, style: const TextStyle(color: AppColors.slate, height: 1.4)),
-        ],
-      ),
-    );
+    return StatusBanner(icon: icon, title: label, detail: detail, variant: variant);
   }
 
   Widget _handshakeSection(
@@ -299,12 +280,12 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('CONFIRM $phaseLabel', style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         Text(
           'Scan the QR code on the other person\'s screen (or type the 6-digit code shown under it).',
-          style: const TextStyle(color: AppColors.slate, height: 1.4),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, height: 1.4),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
@@ -313,17 +294,17 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
             onPressed: () => _scan(deal),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
             icon: const Icon(Icons.dialpad, size: 18),
             label: const Text('Enter code manually'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.ink,
-              side: const BorderSide(color: AppColors.ink),
+              foregroundColor: Theme.of(context).colorScheme.primary,
+              side: BorderSide(color: Theme.of(context).colorScheme.primary),
               minimumSize: const Size.fromHeight(52),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
             ),
             onPressed: () => _enterCode(deal),
           ),
@@ -337,6 +318,11 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
       MaterialPageRoute(builder: (_) => const QrScanScreen()),
     );
     if (scanned == null) return;
+
+    if (scanned == QrScanScreen.manualEntryRequested) {
+      await _enterCode(deal);
+      return;
+    }
 
     // The QR encodes {"transaction_id", "code"} — pull the code out.
     String code;
@@ -354,22 +340,7 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
     final controller = TextEditingController();
     final code = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Enter code'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          decoration: const InputDecoration(hintText: '6-digit code', counterText: ''),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
+      builder: (context) => _ManualCodeDialog(controller: controller),
     );
     if (code == null || code.isEmpty) return;
     await _submit(deal, code);
@@ -388,6 +359,60 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
 
   void _snack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+/// Manual 6-digit code entry dialog with inline validation feedback — the
+/// confirm button stays disabled until exactly 6 digits are entered.
+class _ManualCodeDialog extends StatefulWidget {
+  final TextEditingController controller;
+
+  const _ManualCodeDialog({required this.controller});
+
+  @override
+  State<_ManualCodeDialog> createState() => _ManualCodeDialogState();
+}
+
+class _ManualCodeDialogState extends State<_ManualCodeDialog> {
+  static final _sixDigits = RegExp(r'^\d{6}$');
+  bool _touched = false;
+
+  bool get _isValid => _sixDigits.hasMatch(widget.controller.text.trim());
+
+  @override
+  Widget build(BuildContext context) {
+    final showError = _touched && widget.controller.text.isNotEmpty && !_isValid;
+
+    return AlertDialog(
+      title: const Text('Enter code'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: widget.controller,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            maxLength: 6,
+            decoration: InputDecoration(
+              hintText: '6-digit code',
+              counterText: '',
+              errorText: showError ? 'Enter exactly 6 digits' : null,
+            ),
+            onChanged: (_) => setState(() => _touched = true),
+          ),
+        ],
+      ),
+      actionsPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: _isValid ? () => Navigator.pop(context, widget.controller.text.trim()) : null,
+          child: const Text('Confirm'),
+        ),
+      ],
+    );
   }
 }
 
@@ -448,7 +473,11 @@ class _QrDisplayState extends ConsumerState<_QrDisplay> {
     if (_error != null) {
       return Column(
         children: [
-          Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.slate)),
+          Text(
+            _error!,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
           const SizedBox(height: 12),
           OutlinedButton(onPressed: _fetch, child: const Text('Try again')),
         ],
@@ -466,9 +495,11 @@ class _QrDisplayState extends ConsumerState<_QrDisplay> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
+            // Kept literal white regardless of theme — QR scanners need
+            // reliable light-background/dark-module contrast to read.
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.line),
+            borderRadius: BorderRadius.circular(AppRadius.xxl),
+            border: Border.all(color: Theme.of(context).colorScheme.outline),
           ),
           child: QrImageView(
             data: _payload!,
@@ -479,18 +510,19 @@ class _QrDisplayState extends ConsumerState<_QrDisplay> {
         const SizedBox(height: 12),
         Text(
           _code ?? '',
-          style: const TextStyle(
+          style: AppFonts.mono(
+            context,
             fontSize: 28,
             fontWeight: FontWeight.w700,
             letterSpacing: 6,
-            color: AppColors.ink,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'Refreshes automatically. Have the other person scan it or type this code.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.slate, fontSize: 12),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
         ),
       ],
     );

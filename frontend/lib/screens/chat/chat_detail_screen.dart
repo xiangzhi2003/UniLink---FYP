@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/chat.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/app_tokens.dart';
+import '../../widgets/colored_header.dart';
 
 /// A single conversation, updating live via Supabase Realtime.
 class ChatDetailScreen extends ConsumerStatefulWidget {
@@ -20,6 +21,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   bool _sending = false;
+  int _lastMessageCount = 0;
 
   @override
   void initState() {
@@ -47,6 +49,27 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     }
   }
 
+  void _scrollToBottomIfNewMessage(int newCount) {
+    if (newCount <= _lastMessageCount) return;
+    _lastMessageCount = newCount;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  String _formatTimestamp(DateTime dt) {
+    final local = dt.toLocal();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -57,11 +80,45 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final myId = ref.read(authServiceProvider).currentUser?.id;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
       body: Column(
         children: [
+          ColoredHeader(
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  color: Colors.white,
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const SizedBox(width: 4),
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                  child: Text(
+                    widget.title.isNotEmpty ? widget.title[0].toUpperCase() : '?',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.headlineSmall?.copyWith(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: StreamBuilder<List<Message>>(
               stream: ref.read(chatServiceProvider).messagesStream(widget.conversationId),
@@ -70,17 +127,15 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final messages = snapshot.data!;
-                // New message arrived / opened → mark read + scroll to bottom.
+                // New message arrived / opened → mark read + scroll to bottom
+                // (only when the message count genuinely increased, so we
+                // don't jar the user on every unrelated rebuild).
                 ref.read(chatServiceProvider).markRead(widget.conversationId);
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (_scrollController.hasClients) {
-                    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-                  }
-                });
+                _scrollToBottomIfNewMessage(messages.length);
 
                 if (messages.isEmpty) {
-                  return const Center(
-                    child: Text('Say hello 👋', style: TextStyle(color: AppColors.slate)),
+                  return Center(
+                    child: Text('Say hello 👋', style: TextStyle(color: scheme.onSurfaceVariant)),
                   );
                 }
 
@@ -93,21 +148,45 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                     final mine = m.senderId == myId;
                     return Align(
                       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.72,
-                        ),
-                        decoration: BoxDecoration(
-                          color: mine ? AppColors.ink : Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: mine ? null : Border.all(color: AppColors.line),
-                        ),
-                        child: Text(
-                          m.content,
-                          style: TextStyle(color: mine ? Colors.white : AppColors.ink),
-                        ),
+                      child: Column(
+                        crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            constraints: BoxConstraints(
+                              maxWidth: MediaQuery.of(context).size.width * 0.72,
+                            ),
+                            decoration: BoxDecoration(
+                              color: mine ? scheme.primary : scheme.surface,
+                              borderRadius: mine
+                                  ? const BorderRadius.only(
+                                      topLeft: Radius.circular(AppRadius.lg),
+                                      topRight: Radius.circular(AppRadius.lg),
+                                      bottomLeft: Radius.circular(AppRadius.lg),
+                                      bottomRight: Radius.circular(AppRadius.sm),
+                                    )
+                                  : const BorderRadius.only(
+                                      topLeft: Radius.circular(AppRadius.lg),
+                                      topRight: Radius.circular(AppRadius.lg),
+                                      bottomLeft: Radius.circular(AppRadius.sm),
+                                      bottomRight: Radius.circular(AppRadius.lg),
+                                    ),
+                              border: mine ? null : Border.all(color: scheme.outline),
+                            ),
+                            child: Text(
+                              m.content,
+                              style: TextStyle(color: mine ? scheme.onPrimary : scheme.onSurface),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2, left: 4, right: 4),
+                            child: Text(
+                              _formatTimestamp(m.createdAt),
+                              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   },
@@ -136,8 +215,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                     onPressed: _sending ? null : _send,
                     icon: const Icon(Icons.send),
                     style: IconButton.styleFrom(
-                      backgroundColor: AppColors.gold,
-                      foregroundColor: AppColors.inkDeep,
+                      backgroundColor: scheme.secondary,
+                      foregroundColor: scheme.onSecondary,
                     ),
                   ),
                 ],

@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/chat.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
-import '../../theme/app_theme.dart';
-import '../../utils/error_messages.dart';
+import '../../theme/app_tokens.dart';
+import '../../widgets/async_state_view.dart';
+import '../../widgets/colored_header.dart';
+import '../../widgets/empty_state.dart';
 import 'chat_detail_screen.dart';
 
 /// "Chats" tab: all my conversations, most recent first, with unread badges.
@@ -45,92 +47,166 @@ class ChatListScreenState extends ConsumerState<ChatListScreen> {
     ref.listen(unreadCountProvider, (_, __) => reload());
 
     final myId = ref.read(authServiceProvider).currentUser?.id;
+    final scheme = Theme.of(context).colorScheme;
 
-    return FutureBuilder<List<Conversation>>(
-      future: _future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(friendlyErrorMessage(snapshot.error!), textAlign: TextAlign.center),
-            ),
-          );
-        }
-
-        final convos = snapshot.data ?? [];
-        if (convos.isEmpty) {
-          return RefreshIndicator(
-            onRefresh: _onRefresh,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [
-                SizedBox(height: 120),
-                Icon(Icons.forum_outlined, size: 56, color: AppColors.slate),
-                SizedBox(height: 12),
-                Text(
-                  'No messages yet.\nTap "Message Seller" on a listing to start.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.slate),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return RefreshIndicator(
-          onRefresh: _onRefresh,
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
-            itemCount: convos.length,
-            separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.line),
-            itemBuilder: (context, index) {
-              final c = convos[index];
-              final other = c.otherPartyName(myId ?? '');
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: AppColors.ink,
-                  child: Text(
-                    other.isNotEmpty ? other[0].toUpperCase() : '?',
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-                title: Text(other, style: const TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: Text(
-                  c.lastMessage ?? (c.listingTitle != null ? 'About: ${c.listingTitle}' : 'New chat'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: c.unreadCount > 0
-                    ? Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(color: AppColors.gold, shape: BoxShape.circle),
-                        child: Text(
-                          '${c.unreadCount}',
-                          style: const TextStyle(
-                            color: AppColors.inkDeep,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      )
-                    : null,
-                onTap: () async {
-                  await Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ChatDetailScreen(conversationId: c.id, title: other),
-                    ),
+    return Column(
+      children: [
+        ColoredHeader(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                'Messages',
+                style: Theme.of(
+                  context,
+                ).textTheme.headlineSmall?.copyWith(color: Colors.white),
+              ),
+              const SizedBox(width: 10),
+              FutureBuilder<List<Conversation>>(
+                future: _future,
+                builder: (context, snapshot) {
+                  final count = snapshot.data?.length;
+                  if (count == null) return const SizedBox.shrink();
+                  return Text(
+                    '$count conversation${count == 1 ? '' : 's'}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
                   );
-                  reload();
                 },
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: AsyncStateView<List<Conversation>>(
+            future: _future,
+            onRetry: reload,
+            isEmpty: (data) => data.isEmpty,
+            emptyState: RefreshIndicator(
+              onRefresh: _onRefresh,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(height: MediaQuery.of(context).size.height * 0.15),
+                  const EmptyState(
+                    icon: Icons.forum_outlined,
+                    title: 'No messages yet',
+                    message: 'Tap "Message Seller" on a listing to start.',
+                  ),
+                ],
+              ),
+            ),
+            builder: (context, convos) {
+              return RefreshIndicator(
+                onRefresh: _onRefresh,
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
+                  itemCount: convos.length,
+                  separatorBuilder: (_, __) =>
+                      Divider(height: 1, color: scheme.outlineVariant),
+                  itemBuilder: (context, index) {
+                    final c = convos[index];
+                    final other = c.otherPartyName(myId ?? '');
+                    return InkWell(
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ChatDetailScreen(
+                              conversationId: c.id,
+                              title: other,
+                            ),
+                          ),
+                        );
+                        reload();
+                      },
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          children: [
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                CircleAvatar(
+                                  radius: 24,
+                                  backgroundColor: scheme.primary,
+                                  child: Text(
+                                    other.isNotEmpty
+                                        ? other[0].toUpperCase()
+                                        : '?',
+                                    style: TextStyle(color: scheme.onPrimary),
+                                  ),
+                                ),
+                                if (c.unreadCount > 0)
+                                  Positioned(
+                                    top: -4,
+                                    right: -4,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(5),
+                                      constraints: const BoxConstraints(
+                                        minWidth: 20,
+                                        minHeight: 20,
+                                      ),
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: scheme.secondary,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: scheme.surface,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        '${c.unreadCount}',
+                                        style: TextStyle(
+                                          color: scheme.onSecondary,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    other,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    c.lastMessage ??
+                                        (c.listingTitle != null
+                                            ? 'About: ${c.listingTitle}'
+                                            : 'New chat'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
               );
             },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }

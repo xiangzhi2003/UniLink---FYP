@@ -6,7 +6,10 @@ import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/app_tokens.dart';
 import '../../utils/error_messages.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/status_chip.dart';
 import '../chat/chat_detail_screen.dart';
 import '../transactions/transaction_detail_screen.dart';
 
@@ -34,6 +37,8 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
 
   Future<void> _startDeal() async {
     final listing = widget.listing;
+    if (listing.status != 'active') return;
+
     final myId = ref.read(authServiceProvider).currentUser?.id;
 
     if (myId == listing.sellerId) {
@@ -90,14 +95,30 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
     }
   }
 
+  /// Maps a non-active listing status to a display label + [StatusVariant]
+  /// for the [StatusChip] shown next to the price.
+  (String, StatusVariant) _statusDisplay(String status) {
+    return switch (status) {
+      'sold' => ('Sold', StatusVariant.warning),
+      'rented' => ('Rented', StatusVariant.warning),
+      _ => ('Unavailable', StatusVariant.neutral),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final listing = widget.listing;
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final infoBlue = isDark ? AppColorsDark.infoBlue : AppColors.infoBlue;
     final isRent = listing.listingType == 'rent';
+    final isActive = listing.status == 'active';
     final sellerName = listing.sellerName ?? 'Student';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Listing')),
+      appBar: AppBar(
+        title: Text(listing.title, overflow: TextOverflow.ellipsis),
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
@@ -108,10 +129,10 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
               AspectRatio(
                 aspectRatio: 4 / 3,
                 child: listing.imageUrls.isEmpty
-                    ? const ColoredBox(
-                        color: AppColors.line,
+                    ? ColoredBox(
+                        color: scheme.surfaceContainerHighest,
                         child: Icon(Icons.image_not_supported_outlined,
-                            size: 48, color: AppColors.slate),
+                            size: 48, color: scheme.onSurfaceVariant),
                       )
                     : Stack(
                         children: [
@@ -123,14 +144,14 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                             itemBuilder: (context, index) => CachedNetworkImage(
                               imageUrl: listing.imageUrls[index],
                               fit: BoxFit.cover,
-                              placeholder: (_, __) => const ColoredBox(
-                                color: AppColors.line,
-                                child: Center(child: CircularProgressIndicator()),
+                              placeholder: (_, __) => ColoredBox(
+                                color: scheme.surfaceContainerHighest,
+                                child: const Center(child: CircularProgressIndicator()),
                               ),
-                              errorWidget: (_, __, ___) => const ColoredBox(
-                                color: AppColors.line,
+                              errorWidget: (_, __, ___) => ColoredBox(
+                                color: scheme.surfaceContainerHighest,
                                 child: Icon(Icons.broken_image_outlined,
-                                    color: AppColors.slate),
+                                    color: scheme.onSurfaceVariant),
                               ),
                             ),
                           ),
@@ -150,7 +171,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         color: i == _currentPhoto
-                                            ? AppColors.gold
+                                            ? scheme.secondary
                                             : Colors.white.withValues(alpha: 0.6),
                                       ),
                                     ),
@@ -161,7 +182,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                       ),
               ),
               Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(AppSpacing.xl),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -169,106 +190,98 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                     Row(
                       children: [
                         _badge(
+                          context,
                           isRent ? 'FOR RENT' : 'FOR SALE',
-                          background: isRent ? AppColors.ink : AppColors.gold,
-                          foreground: isRent ? Colors.white : AppColors.inkDeep,
+                          background: isRent ? infoBlue : scheme.primary,
+                          foreground: Colors.white,
                         ),
-                        const SizedBox(width: 8),
-                        _badge(
-                          listing.condition == 'new' ? 'NEW' : 'USED',
-                          background: AppColors.line,
-                          foreground: AppColors.ink,
+                        const SizedBox(width: AppSpacing.sm),
+                        StatusChip(
+                          label: listing.condition == 'new' ? 'New' : 'Used',
+                          variant: listing.condition == 'new'
+                              ? StatusVariant.success
+                              : StatusVariant.neutral,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppSpacing.sm),
                         _badge(
+                          context,
                           listing.category.toUpperCase(),
-                          background: AppColors.line,
-                          foreground: AppColors.ink,
+                          background: scheme.surfaceContainerHighest,
+                          foreground: scheme.onSurface,
                         ),
                       ],
                     ),
                     const SizedBox(height: 14),
                     Text(listing.title, style: Theme.of(context).textTheme.headlineSmall),
                     const SizedBox(height: 6),
-                    Text(
-                      'RM ${listing.price.toStringAsFixed(2)}${isRent ? ' / day' : ''}',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: AppColors.goldDeep,
-                          ),
+                    Row(
+                      children: [
+                        Text(
+                          'RM ${listing.price.toStringAsFixed(2)}${isRent ? ' / day' : ''}',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                color: scheme.secondary,
+                              ),
+                        ),
+                        if (!isActive) ...[
+                          const SizedBox(width: AppSpacing.sm),
+                          Builder(builder: (context) {
+                            final (label, variant) = _statusDisplay(listing.status);
+                            return StatusChip(label: label, variant: variant);
+                          }),
+                        ],
+                      ],
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: AppSpacing.xl),
                     // --- Seller ---
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(AppSpacing.md),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.line),
+                        color: scheme.surface,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(color: scheme.outlineVariant),
                       ),
                       child: Row(
                         children: [
                           CircleAvatar(
-                            backgroundColor: AppColors.ink,
+                            backgroundColor: scheme.primary,
                             child: Text(
                               sellerName.isNotEmpty ? sellerName[0].toUpperCase() : '?',
-                              style: const TextStyle(color: Colors.white),
+                              style: TextStyle(color: scheme.onPrimary),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: AppSpacing.md),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(sellerName,
-                                    style: const TextStyle(fontWeight: FontWeight.w700)),
-                                const Text(
-                                  'Verified student',
-                                  style: TextStyle(color: AppColors.verified, fontSize: 12),
-                                ),
-                              ],
-                            ),
+                            child: Text(sellerName,
+                                style: const TextStyle(fontWeight: FontWeight.w700)),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: AppSpacing.xl),
                     Text('DESCRIPTION', style: Theme.of(context).textTheme.labelLarge),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                     Text(
                       listing.description,
                       style: const TextStyle(height: 1.5),
                     ),
-                    const SizedBox(height: 28),
-                    // --- Actions (placeholders until Sprint 3) ---
+                    const SizedBox(height: AppSpacing.xxl),
+                    // --- Actions ---
                     SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _booking ? null : _startDeal,
-                        icon: _booking
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.shield_outlined, size: 18),
-                        label: Text(isRent ? 'Book' : 'Buy'),
+                      child: PrimaryButton(
+                        label: isActive ? (isRent ? 'Book' : 'Buy') : _statusDisplay(listing.status).$1,
+                        icon: isActive ? Icons.shield_outlined : null,
+                        isLoading: _booking,
+                        onPressed: isActive && !_booking ? _startDeal : null,
                       ),
                     ),
                     const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
-                      child: OutlinedButton.icon(
+                      child: SecondaryButton(
+                        label: 'Message Seller',
+                        icon: Icons.chat_bubble_outline,
                         onPressed: _messageSeller,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.ink,
-                          side: const BorderSide(color: AppColors.ink),
-                          minimumSize: const Size.fromHeight(52),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                        label: const Text('Message Seller'),
                       ),
                     ),
                   ],
@@ -281,7 +294,8 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
     );
   }
 
-  Widget _badge(String text, {required Color background, required Color foreground}) {
+  Widget _badge(BuildContext context, String text,
+      {required Color background, required Color foreground}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(

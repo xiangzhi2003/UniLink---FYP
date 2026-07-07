@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/error_messages.dart';
 import '../../utils/validators.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_text_field.dart';
 import '../../widgets/auth_header_scaffold.dart';
 import '../../widgets/info_banner.dart';
 
@@ -70,21 +72,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Semantics(
+            LabeledTextField(
               label: 'University email',
-              child: Text(
-                'UNIVERSITY EMAIL',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                hintText: 'you@student.university.edu.my',
-                prefixIcon: Icon(Icons.mail_outline),
-              ),
+              hintText: 'you@student.university.edu.my',
+              prefixIcon: const Icon(Icons.mail_outline),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Enter your email';
@@ -96,30 +89,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               },
             ),
             const SizedBox(height: 20),
-            Semantics(
+            LabeledTextField(
               label: 'Password',
-              child: Text(
-                'PASSWORD',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
               controller: _passwordController,
               obscureText: _obscurePassword,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                  ),
-                  onPressed:
-                      () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
                 ),
+                onPressed:
+                    () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
               ),
               // Only checks non-empty (not length) — an existing account's
               // password could predate any length rule register.dart enforces.
@@ -150,44 +134,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ],
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _loading ? null : _login,
-                child:
-                    _loading
-                        ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                        : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('Sign In'),
-                            SizedBox(width: 8),
-                            Icon(Icons.arrow_forward, size: 18),
-                          ],
-                        ),
-              ),
+            PrimaryButton(
+              label: 'Sign In',
+              icon: Icons.arrow_forward,
+              isLoading: _loading,
+              onPressed: _login,
             ),
             const SizedBox(height: 8),
             Center(
               child: TextButton(
                 onPressed: widget.onSwitchToRegister,
                 child: RichText(
-                  text: const TextSpan(
-                    style: TextStyle(color: Color(0xFF5B6472), fontSize: 14),
+                  text: TextSpan(
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                     children: [
-                      TextSpan(text: 'New student? '),
+                      const TextSpan(text: 'New student? '),
                       TextSpan(
                         text: 'Create account',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F2A4A),
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ],

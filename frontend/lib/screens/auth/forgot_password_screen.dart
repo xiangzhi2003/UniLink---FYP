@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/error_messages.dart';
 import '../../utils/validators.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_text_field.dart';
 import '../../widgets/auth_header_scaffold.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
@@ -67,12 +69,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton(
-            onPressed: widget.onBack,
-            child: const Text('Back to log in'),
-          ),
+        SecondaryButton(
+          label: 'Back to log in',
+          onPressed: widget.onBack,
         ),
       ],
     );
@@ -84,18 +83,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Semantics(
+          LabeledTextField(
             label: 'University email',
-            child: Text('UNIVERSITY EMAIL', style: Theme.of(context).textTheme.labelLarge),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              hintText: 'you@student.university.edu.my',
-              prefixIcon: Icon(Icons.mail_outline),
-            ),
+            hintText: 'you@student.university.edu.my',
+            prefixIcon: const Icon(Icons.mail_outline),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return 'Enter your email';
@@ -111,18 +104,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ],
           const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _loading ? null : _sendResetLink,
-              child: _loading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Text('Send reset link'),
-            ),
+          PrimaryButton(
+            label: 'Send reset link',
+            isLoading: _loading,
+            onPressed: _sendResetLink,
           ),
         ],
       ),

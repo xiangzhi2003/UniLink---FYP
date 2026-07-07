@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
 /// UniLink's signature mark: a ticked ring like a library due-date stamp or
 /// wax seal. `sealed: false` is the idle brand mark (outline, gold);
@@ -14,16 +13,18 @@ class StampMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = sealed ? scheme.tertiary : scheme.secondary;
     return SizedBox(
       width: size,
       height: size,
       child: CustomPaint(
-        painter: _StampPainter(sealed: sealed),
+        painter: _StampPainter(sealed: sealed, color: color),
         child: Center(
           child: Icon(
             sealed ? Icons.check_circle : Icons.check_circle_outline,
             size: size * 0.38,
-            color: sealed ? AppColors.verified : AppColors.gold,
+            color: color,
           ),
         ),
       ),
@@ -33,12 +34,12 @@ class StampMark extends StatelessWidget {
 
 class _StampPainter extends CustomPainter {
   final bool sealed;
+  final Color color;
 
-  _StampPainter({required this.sealed});
+  _StampPainter({required this.sealed, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final color = sealed ? AppColors.verified : AppColors.gold;
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
 
@@ -65,5 +66,6 @@ class _StampPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _StampPainter oldDelegate) => oldDelegate.sealed != sealed;
+  bool shouldRepaint(covariant _StampPainter oldDelegate) =>
+      oldDelegate.sealed != sealed || oldDelegate.color != color;
 }

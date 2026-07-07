@@ -4,8 +4,11 @@ import '../../models/user_profile.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/error_messages.dart';
 import '../../utils/validators.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_text_field.dart';
 import '../../widgets/auth_header_scaffold.dart';
 import '../../widgets/info_banner.dart';
+import '../../widgets/step_progress_indicator.dart';
 
 /// Two-step registration: account details, then profile — the account isn't
 /// created in Supabase until both steps are filled in and "Register" is
@@ -110,18 +113,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Semantics(
+            StepProgressIndicator(currentStep: _step, totalSteps: 2),
+            const SizedBox(height: 20),
+            LabeledTextField(
               label: 'University email',
-              child: Text('UNIVERSITY EMAIL', style: Theme.of(context).textTheme.labelLarge),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                hintText: 'you@student.university.edu.my',
-                prefixIcon: Icon(Icons.mail_outline),
-              ),
+              hintText: 'you@student.university.edu.my',
+              prefixIcon: const Icon(Icons.mail_outline),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Enter your university email';
@@ -133,22 +132,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               },
             ),
             const SizedBox(height: 20),
-            Semantics(
+            LabeledTextField(
               label: 'Password',
-              child: Text('PASSWORD', style: Theme.of(context).textTheme.labelLarge),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
               controller: _passwordController,
               obscureText: _obscurePassword,
-              decoration: InputDecoration(
-                helperText: 'At least 6 characters',
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
-                  icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                ),
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
               ),
               validator: (value) {
                 if (value == null || value.length < 6) {
@@ -158,23 +150,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               },
             ),
             const SizedBox(height: 20),
-            Semantics(
+            LabeledTextField(
               label: 'Confirm password',
-              child: Text('CONFIRM PASSWORD', style: Theme.of(context).textTheme.labelLarge),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
               controller: _confirmPasswordController,
               obscureText: _obscureConfirmPassword,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  tooltip: _obscureConfirmPassword ? 'Show password' : 'Hide password',
-                  icon: Icon(
-                    _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                  ),
-                  onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                tooltip: _obscureConfirmPassword ? 'Show password' : 'Hide password',
+                icon: Icon(
+                  _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                 ),
+                onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -192,32 +178,26 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   'Only .edu.my email addresses are accepted.',
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _goToProfileStep,
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Next'),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward, size: 18),
-                  ],
-                ),
-              ),
+            PrimaryButton(
+              label: 'Next',
+              icon: Icons.arrow_forward,
+              onPressed: _goToProfileStep,
             ),
             const SizedBox(height: 8),
             Center(
               child: TextButton(
                 onPressed: widget.onSwitchToLogin,
                 child: RichText(
-                  text: const TextSpan(
-                    style: TextStyle(color: Color(0xFF5B6472), fontSize: 14),
+                  text: TextSpan(
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                     children: [
-                      TextSpan(text: 'Already have an account? '),
+                      const TextSpan(text: 'Already have an account? '),
                       TextSpan(
                         text: 'Sign in',
-                        style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F2A4A)),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                       ),
                     ],
                   ),
@@ -243,26 +223,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Semantics(
+            StepProgressIndicator(currentStep: _step, totalSteps: 2),
+            const SizedBox(height: 20),
+            LabeledTextField(
               label: 'Full name',
-              child: Text('FULL NAME', style: Theme.of(context).textTheme.labelLarge),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
               controller: _nameController,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.person_outline)),
+              prefixIcon: const Icon(Icons.person_outline),
               validator: (value) =>
                   (value == null || value.trim().isEmpty) ? 'Enter your name' : null,
             ),
             const SizedBox(height: 20),
-            Semantics(
+            LabeledTextField(
               label: 'University',
-              child: Text('UNIVERSITY', style: Theme.of(context).textTheme.labelLarge),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
               controller: _universityController,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.school_outlined)),
+              prefixIcon: const Icon(Icons.school_outlined),
               validator: (value) =>
                   (value == null || value.trim().isEmpty) ? 'Enter your university' : null,
             ),
@@ -271,18 +245,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _loading ? null : _register,
-                child: _loading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Register'),
-              ),
+            PrimaryButton(
+              label: 'Register',
+              isLoading: _loading,
+              onPressed: _register,
             ),
           ],
         ),

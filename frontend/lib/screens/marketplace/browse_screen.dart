@@ -1,16 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/listing.dart';
 import '../../providers/listing_provider.dart';
-import '../../providers/transaction_provider.dart';
-import '../../theme/app_theme.dart';
-import '../../utils/error_messages.dart';
+import '../../theme/app_tokens.dart';
+import '../../widgets/async_state_view.dart';
+import '../../widgets/colored_header.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/listing_card.dart';
 import 'listing_detail_screen.dart';
 
-/// Marketplace home: category tabs + AI (RAG) semantic search over a
-/// responsive grid of active listings. When a query is present it goes to the
-/// backend's Gemini+Pinecone search; otherwise it's the plain category browse.
+/// Marketplace home: category tabs + keyword search over a responsive grid of
+/// active listings. (Semantic/RAG search is Sprint 3C — parked for now; this
+/// uses the plain ilike keyword fallback so search works without Gemini/
+/// Pinecone configured.)
 class BrowseScreen extends ConsumerStatefulWidget {
   const BrowseScreen({super.key});
 
@@ -20,10 +24,12 @@ class BrowseScreen extends ConsumerStatefulWidget {
 
 class BrowseScreenState extends ConsumerState<BrowseScreen> {
   static const _tabs = ['All', ...Listing.categories];
+  static const _debounceDuration = Duration(milliseconds: 350);
 
   final _searchController = TextEditingController();
   String _selectedTab = 'All';
   String _query = '';
+  Timer? _debounce;
 
   late Future<List<Listing>> _listingsFuture;
 
@@ -34,15 +40,10 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
   }
 
   Future<List<Listing>> _fetch() async {
-    // No query -> plain category browse. With a query -> semantic search
-    // across all categories (relevance beats category filtering here).
-    if (_query.trim().isEmpty) {
-      return ref.read(listingServiceProvider).fetchActiveListings(
-            category: _selectedTab == 'All' ? null : _selectedTab,
-          );
-    }
-    final ids = await ref.read(backendServiceProvider).searchListings(_query.trim());
-    return ref.read(listingServiceProvider).fetchListingsByIds(ids);
+    return ref.read(listingServiceProvider).fetchActiveListings(
+          category: _selectedTab == 'All' ? null : _selectedTab,
+          query: _query,
+        );
   }
 
   /// Also called by HomeShell after a new listing is published so the grid
@@ -61,55 +62,110 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
     await future;
   }
 
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(_debounceDuration, () {
+      setState(() {
+        _query = value;
+        _listingsFuture = _fetch();
+      });
+    });
+  }
+
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: TextField(
-            controller: _searchController,
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              hintText: 'Search textbooks, calculators...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _query.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: 'Clear search',
-                      icon: const Icon(Icons.close),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {
-                          _query = '';
-                          _listingsFuture = _fetch();
-                        });
-                      },
-                    ),
-            ),
-            onSubmitted: (value) {
-              setState(() {
-                _query = value;
-                _listingsFuture = _fetch();
-              });
-            },
+        ColoredHeader(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xl,
+            AppSpacing.headerTop,
+            AppSpacing.xl,
+            AppSpacing.lg,
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 6, 16, 0),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.auto_awesome, size: 13, color: AppColors.gold),
-              const SizedBox(width: 4),
               Text(
-                'AI Search — try describing what you need',
-                style: TextStyle(color: AppColors.slate, fontSize: 11),
+                'What are you looking for?',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  textInputAction: TextInputAction.search,
+                  style: const TextStyle(color: Color(0xFF1E1245)),
+                  decoration: InputDecoration(
+                    hintText: 'Search textbooks, calculators...',
+                    hintStyle: const TextStyle(color: Color(0xFF6B7280)),
+                    filled: true,
+                    fillColor: Colors.white,
+                    prefixIcon: const Icon(Icons.search, color: Color(0xFF6B7280)),
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_query.isNotEmpty)
+                          IconButton(
+                            tooltip: 'Clear search',
+                            icon: const Icon(Icons.close, color: Color(0xFF6B7280)),
+                            onPressed: () {
+                              _debounce?.cancel();
+                              _searchController.clear();
+                              setState(() {
+                                _query = '';
+                                _listingsFuture = _fetch();
+                              });
+                            },
+                          ),
+                        IconButton(
+                          tooltip: 'AI Search',
+                          icon: Icon(Icons.auto_awesome, color: scheme.primary),
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Try the AI Search tab below for natural-language search'),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onChanged: _onSearchChanged,
+                  onSubmitted: (value) {
+                    _debounce?.cancel();
+                    setState(() {
+                      _query = value;
+                      _listingsFuture = _fetch();
+                    });
+                  },
+                ),
               ),
             ],
           ),
@@ -126,9 +182,9 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
                   child: ChoiceChip(
                     label: Text(tab),
                     selected: _selectedTab == tab,
-                    selectedColor: AppColors.ink,
+                    selectedColor: scheme.primary,
                     labelStyle: TextStyle(
-                      color: _selectedTab == tab ? Colors.white : AppColors.ink,
+                      color: _selectedTab == tab ? scheme.onPrimary : scheme.onSurface,
                       fontSize: 13,
                     ),
                     onSelected: (_) {
@@ -143,49 +199,21 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
           ),
         ),
         Expanded(
-          child: FutureBuilder<List<Listing>>(
-            future: _listingsFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      friendlyErrorMessage(snapshot.error!),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                );
-              }
-
-              final listings = snapshot.data ?? [];
-              if (listings.isEmpty) {
-                return RefreshIndicator(
-                  onRefresh: _onRefresh,
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: [
-                      const SizedBox(height: 120),
-                      const Icon(Icons.storefront_outlined, size: 56, color: AppColors.slate),
-                      const SizedBox(height: 12),
-                      Text(
-                        _query.isEmpty
-                            ? 'No listings yet — be the first to sell something!'
-                            : 'No results for "$_query"',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: AppColors.slate),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return RefreshIndicator(
-                onRefresh: _onRefresh,
-                child: LayoutBuilder(
+          child: RefreshIndicator(
+            onRefresh: _onRefresh,
+            child: AsyncStateView<List<Listing>>(
+              future: _listingsFuture,
+              loadingSkeleton: const GridSkeleton(crossAxisCount: 2, itemCount: 6),
+              isEmpty: (listings) => listings.isEmpty,
+              emptyState: EmptyState(
+                icon: Icons.storefront_outlined,
+                title: _query.isEmpty ? 'No listings yet' : 'No results',
+                message: _query.isEmpty
+                    ? 'Be the first to sell something!'
+                    : 'No results for "$_query"',
+              ),
+              builder: (context, listings) {
+                return LayoutBuilder(
                   builder: (context, constraints) {
                     final columns = constraints.maxWidth >= 900
                         ? 4
@@ -197,8 +225,8 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: columns,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
+                        mainAxisSpacing: AppSpacing.md,
+                        crossAxisSpacing: AppSpacing.md,
                         childAspectRatio: 0.72,
                       ),
                       itemCount: listings.length,
@@ -215,9 +243,9 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
                       },
                     );
                   },
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
       ],

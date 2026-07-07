@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/app_tokens.dart';
+import '../../widgets/app_button.dart';
 
 /// First screen of the auth flow: the campus-wall pitch. Sets up the three
 /// distinction features before funnelling students into register or login.
@@ -11,16 +12,11 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: Container(
         width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.ink, AppColors.inkDeep],
-          ),
-        ),
+        color: scheme.primary,
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -35,14 +31,14 @@ class WelcomeScreen extends StatelessWidget {
                       height: 84,
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(22),
+                        borderRadius: BorderRadius.circular(AppRadius.xxl),
                         border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
                       ),
                       child: Center(
                         child: Text(
                           'U',
                           style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                                color: AppColors.gold,
+                                color: scheme.secondary,
                                 fontWeight: FontWeight.w700,
                               ),
                         ),
@@ -79,21 +75,16 @@ class WelcomeScreen extends StatelessWidget {
                       label: 'QR digital handshake',
                     ),
                     const SizedBox(height: 48),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: onGetStarted,
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('Get Started'),
-                            SizedBox(width: 8),
-                            Icon(Icons.arrow_forward, size: 18),
-                          ],
-                        ),
-                      ),
+                    PrimaryButton(
+                      label: 'Get Started',
+                      onPressed: onGetStarted,
+                      icon: Icons.arrow_forward,
                     ),
                     const SizedBox(height: 12),
+                    // A plain `SecondaryButton` would render violet-on-violet
+                    // here (it always tints from `scheme.primary`/`scheme.error`),
+                    // so this flat-primary background keeps a bespoke
+                    // white-on-violet outline instead.
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton(
@@ -102,9 +93,9 @@ class WelcomeScreen extends StatelessWidget {
                           foregroundColor: Colors.white,
                           backgroundColor: Colors.white.withValues(alpha: 0.06),
                           side: BorderSide(color: Colors.white.withValues(alpha: 0.24)),
-                          minimumSize: const Size.fromHeight(52),
+                          minimumSize: const Size.fromHeight(56),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
+                              borderRadius: BorderRadius.circular(AppRadius.lg)),
                         ),
                         child: const Text('I already have an account'),
                       ),
@@ -135,12 +126,13 @@ class _FeatureRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Row(
         children: [
@@ -148,10 +140,10 @@ class _FeatureRow extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: AppColors.gold.withValues(alpha: 0.18),
+              color: scheme.secondary.withValues(alpha: 0.18),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 18, color: AppColors.gold),
+            child: Icon(icon, size: 18, color: scheme.secondary),
           ),
           const SizedBox(width: 12),
           Expanded(

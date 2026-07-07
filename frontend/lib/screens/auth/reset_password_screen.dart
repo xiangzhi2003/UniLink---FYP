@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/error_messages.dart';
 import '../../utils/recovery_flag.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_text_field.dart';
 import '../../widgets/auth_header_scaffold.dart';
 
 /// Shown when the app opens with an active password-recovery session (after
@@ -25,6 +27,19 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   String? _error;
 
   Future<void> _cancel() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel password reset?'),
+        content: const Text("You'll be signed out and will need to log in again to continue."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Sign out')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
     await clearRecoveryPending();
     await ref.read(authServiceProvider).signOut();
   }
@@ -69,22 +84,15 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Semantics(
+            LabeledTextField(
               label: 'New password',
-              child: Text('NEW PASSWORD', style: Theme.of(context).textTheme.labelLarge),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
               controller: _passwordController,
               obscureText: _obscurePassword,
-              decoration: InputDecoration(
-                helperText: 'At least 6 characters',
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
-                  icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                ),
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
               ),
               validator: (value) {
                 if (value == null || value.length < 6) {
@@ -94,23 +102,17 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               },
             ),
             const SizedBox(height: 20),
-            Semantics(
+            LabeledTextField(
               label: 'Confirm password',
-              child: Text('CONFIRM PASSWORD', style: Theme.of(context).textTheme.labelLarge),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
               controller: _confirmPasswordController,
               obscureText: _obscureConfirmPassword,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  tooltip: _obscureConfirmPassword ? 'Show password' : 'Hide password',
-                  icon: Icon(
-                    _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                  ),
-                  onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                tooltip: _obscureConfirmPassword ? 'Show password' : 'Hide password',
+                icon: Icon(
+                  _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                 ),
+                onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -127,18 +129,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _loading ? null : _updatePassword,
-                child: _loading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Update password'),
-              ),
+            PrimaryButton(
+              label: 'Update password',
+              isLoading: _loading,
+              onPressed: _updatePassword,
             ),
             const SizedBox(height: 8),
             Center(

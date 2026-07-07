@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import '../theme/app_tokens.dart';
 
 /// Tunable layout numbers for [AuthHeaderScaffold]. Edit these directly to
 /// nudge the header's proportions — each controls one visual thing.
@@ -60,8 +60,9 @@ class AuthHeaderScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppColors.ink,
+      backgroundColor: scheme.primary,
       body: Column(
         children: [
           SafeArea(
@@ -93,9 +94,9 @@ class AuthHeaderScaffold extends StatelessWidget {
                             child: IconButton(
                               tooltip: 'Back',
                               onPressed: onBack,
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.arrow_back,
-                                color: Colors.white,
+                                color: scheme.onPrimary,
                               ),
                               padding: EdgeInsets.zero,
                               alignment: Alignment.centerLeft,
@@ -114,7 +115,7 @@ class AuthHeaderScaffold extends StatelessWidget {
                       Text(
                         title,
                         style: Theme.of(context).textTheme.headlineMedium
-                            ?.copyWith(color: Colors.white),
+                            ?.copyWith(color: scheme.onPrimary),
                       ),
                       if (subtitle != null) ...[
                         const SizedBox(
@@ -125,7 +126,7 @@ class AuthHeaderScaffold extends StatelessWidget {
                           style: Theme.of(
                             context,
                           ).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.75),
+                            color: scheme.onPrimary.withValues(alpha: 0.75),
                           ),
                         ),
                       ],
@@ -138,11 +139,11 @@ class AuthHeaderScaffold extends StatelessWidget {
           Expanded(
             child: Container(
               width: double.infinity,
-              decoration: const BoxDecoration(
-                color: AppColors.paper,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(28),
-                  topRight: Radius.circular(28),
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(AppRadius.xxl),
+                  topRight: Radius.circular(AppRadius.xxl),
                 ),
               ),
               child: SafeArea(

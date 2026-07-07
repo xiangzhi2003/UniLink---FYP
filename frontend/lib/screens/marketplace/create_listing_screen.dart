@@ -8,8 +8,10 @@ import '../../models/listing.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/listing_provider.dart';
 import '../../providers/transaction_provider.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/app_tokens.dart';
 import '../../utils/error_messages.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/section_header.dart';
 
 /// Create a new listing, or edit an existing one when [existing] is given
 /// (Feature 5 reuses this screen). Pops with `true` after a successful save
@@ -186,8 +188,56 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const SectionHeader(label: 'Basics'),
+                  TextFormField(
+                    controller: _titleController,
+                    maxLength: 80,
+                    decoration: const InputDecoration(
+                      labelText: 'Title',
+                      hintText: 'e.g. Casio FX-570 calculator',
+                      counterText: '',
+                    ),
+                    validator: (value) =>
+                        (value == null || value.trim().isEmpty) ? 'Enter a title' : null,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  TextFormField(
+                    controller: _descriptionController,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Description',
+                      hintText: 'Condition details, pickup spot on campus, etc.',
+                    ),
+                    validator: (value) =>
+                        (value == null || value.trim().isEmpty) ? 'Enter a description' : null,
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  const SectionHeader(label: 'Category & condition'),
+                  DropdownButtonFormField<String>(
+                    value: _category,
+                    hint: const Text('Select a category'),
+                    items: Listing.categories
+                        .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                        .toList(),
+                    onChanged: (value) => setState(() => _category = value),
+                    validator: (value) => value == null ? 'Select a category' : null,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  _label(context, 'CONDITION'),
+                  const SizedBox(height: AppSpacing.sm),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'new', label: Text('New')),
+                      ButtonSegment(value: 'used', label: Text('Used')),
+                    ],
+                    selected: {_condition},
+                    onSelectionChanged: (selection) =>
+                        setState(() => _condition = selection.first),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  const SectionHeader(label: 'Pricing & type'),
                   _label(context, 'I WANT TO'),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   SegmentedButton<String>(
                     segments: const [
                       ButtonSegment(value: 'sale', label: Text('Sell'), icon: Icon(Icons.sell_outlined)),
@@ -197,52 +247,12 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                     onSelectionChanged: (selection) =>
                         setState(() => _listingType = selection.first),
                   ),
-                  const SizedBox(height: 20),
-                  _label(context, 'PHOTOS (1-5)'),
-                  const SizedBox(height: 8),
-                  _buildPhotoStrip(context),
-                  if (_photoError != null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      _photoError!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                  _label(context, 'TITLE'),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _titleController,
-                    maxLength: 80,
-                    decoration: const InputDecoration(
-                      hintText: 'e.g. Casio FX-570 calculator',
-                      counterText: '',
-                    ),
-                    validator: (value) =>
-                        (value == null || value.trim().isEmpty) ? 'Enter a title' : null,
-                  ),
-                  const SizedBox(height: 20),
-                  _label(context, 'DESCRIPTION'),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _descriptionController,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      hintText: 'Condition details, pickup spot on campus, etc.',
-                    ),
-                    validator: (value) =>
-                        (value == null || value.trim().isEmpty) ? 'Enter a description' : null,
-                  ),
-                  const SizedBox(height: 20),
-                  _label(context, _listingType == 'rent' ? 'PRICE (RM, PER DAY)' : 'PRICE (RM)'),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.lg),
                   TextFormField(
                     controller: _priceController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
+                      labelText: _listingType == 'rent' ? 'Price (RM, per day)' : 'Price (RM)',
                       prefixText: 'RM ',
                       hintText: '0.00',
                     ),
@@ -257,46 +267,30 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 20),
-                  _label(context, 'CATEGORY'),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    value: _category,
-                    hint: const Text('Select a category'),
-                    items: Listing.categories
-                        .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                        .toList(),
-                    onChanged: (value) => setState(() => _category = value),
-                    validator: (value) => value == null ? 'Select a category' : null,
-                  ),
-                  const SizedBox(height: 20),
-                  _label(context, 'CONDITION'),
-                  const SizedBox(height: 8),
-                  SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(value: 'new', label: Text('New')),
-                      ButtonSegment(value: 'used', label: Text('Used')),
-                    ],
-                    selected: {_condition},
-                    onSelectionChanged: (selection) =>
-                        setState(() => _condition = selection.first),
-                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  SectionHeader(label: 'Photos (1-$_maxPhotos)'),
+                  _buildPhotoStrip(context),
+                  if (_photoError != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _photoError!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                   if (_error != null) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.lg),
                     Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                   ],
-                  const SizedBox(height: 28),
+                  const SizedBox(height: AppSpacing.xxl),
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
+                    child: PrimaryButton(
+                      label: _isEditing ? 'Save changes' : 'Publish listing',
+                      isLoading: _loading,
                       onPressed: _loading ? null : _submit,
-                      child: _loading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : Text(_isEditing ? 'Save changes' : 'Publish listing'),
                     ),
                   ),
                 ],
@@ -315,13 +309,14 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
     );
   }
 
-  Widget _photoThumb({required Widget image, required VoidCallback onRemove}) {
+  Widget _photoThumb(BuildContext context, {required Widget image, required VoidCallback onRemove}) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(right: 10),
       child: Stack(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             child: image,
           ),
           Positioned(
@@ -331,11 +326,11 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
               onTap: onRemove,
               child: Container(
                 padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  color: AppColors.inkDeep,
+                decoration: BoxDecoration(
+                  color: scheme.inverseSurface,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.close, size: 16, color: Colors.white),
+                child: Icon(Icons.close, size: 16, color: scheme.onInverseSurface),
               ),
             ),
           ),
@@ -345,6 +340,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
   }
 
   Widget _buildPhotoStrip(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
       height: 96,
       child: ListView(
@@ -353,6 +349,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
           // Already-uploaded photos being kept (edit mode)
           for (var i = 0; i < _existingUrls.length; i++)
             _photoThumb(
+              context,
               image: CachedNetworkImage(
                 imageUrl: _existingUrls[i],
                 width: 96,
@@ -364,6 +361,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
           // Newly picked photos
           for (var i = 0; i < _newImagePreviews.length; i++)
             _photoThumb(
+              context,
               image: Image.memory(
                 _newImagePreviews[i],
                 width: 96,
@@ -378,21 +376,21 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
           if (_photoCount < _maxPhotos)
             InkWell(
               onTap: _pickImages,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
               child: Container(
                 width: 96,
                 height: 96,
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.line),
+                  color: scheme.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  border: Border.all(color: scheme.outlineVariant),
                 ),
-                child: const Column(
+                child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.add_a_photo_outlined, color: AppColors.slate),
-                    SizedBox(height: 4),
-                    Text('Add', style: TextStyle(color: AppColors.slate, fontSize: 12)),
+                    Icon(Icons.add_a_photo_outlined, color: scheme.onSurfaceVariant),
+                    const SizedBox(height: 4),
+                    Text('Add', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
                   ],
                 ),
               ),
