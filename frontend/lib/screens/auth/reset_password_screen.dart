@@ -26,24 +26,6 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   bool _loading = false;
   String? _error;
 
-  Future<void> _cancel() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel password reset?'),
-        content: const Text("You'll be signed out and will need to log in again to continue."),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Sign out')),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    await clearRecoveryPending();
-    await ref.read(authServiceProvider).signOut();
-  }
-
   Future<void> _updatePassword() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -133,13 +115,6 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               label: 'Update password',
               isLoading: _loading,
               onPressed: _updatePassword,
-            ),
-            const SizedBox(height: 8),
-            Center(
-              child: TextButton(
-                onPressed: _loading ? null : _cancel,
-                child: const Text('Cancel'),
-              ),
             ),
           ],
         ),
