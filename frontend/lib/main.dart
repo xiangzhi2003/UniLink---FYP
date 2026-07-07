@@ -9,21 +9,23 @@ import 'widgets/auth_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Must be read before initSupabase(): Supabase's implicit auth flow strips
+  // the recovery tokens out of the URL (history.replaceState) as part of
+  // Supabase.initialize(), so checking Uri.base afterwards would always see
+  // it already cleared.
+  final isRecoveryLink = kIsWeb && Uri.base.fragment.contains('type=recovery');
   await initSupabase();
-  runApp(const ProviderScope(child: MyApp()));
+  runApp(ProviderScope(child: MyApp(isRecoveryLink: isRecoveryLink)));
 }
 
 class MyApp extends ConsumerWidget {
-  const MyApp({super.key});
+  final bool isRecoveryLink;
+
+  const MyApp({super.key, required this.isRecoveryLink});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
-    // Supabase's implicit auth flow appends `type=recovery` to the URL fragment
-    // when a password-reset link is opened — let that still reach AuthGate
-    // (which already knows how to show ResetPasswordScreen) instead of the
-    // marketing landing page.
-    final isRecoveryLink = kIsWeb && Uri.base.fragment.contains('type=recovery');
     return MaterialApp(
       title: 'UniLink',
       theme: AppTheme.light,
