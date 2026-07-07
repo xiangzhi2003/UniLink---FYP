@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,8 +11,12 @@ import '../screens/auth/reset_password_screen.dart';
 import '../screens/auth/welcome_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 import '../screens/home/home_shell.dart';
+import '../theme/app_tokens.dart';
 import '../utils/error_messages.dart';
 import '../utils/recovery_flag.dart';
+import 'app_button.dart';
+import 'status_banner.dart';
+import 'status_chip.dart';
 
 enum _AuthView { welcome, login, register, forgotPassword }
 
@@ -46,6 +51,13 @@ class _AuthGateState extends ConsumerState<AuthGate> {
   // load still knows to gate on the reset screen.
   bool _inPasswordRecovery = false;
   bool _checkingPersistedRecoveryFlag = true;
+
+  // Web only: after a reset-password link completes updatePassword(), the
+  // browser tab still holds a real signed-in session — falling through to
+  // HomeShell would show the full mobile marketplace UI inside a browser,
+  // which defeats the app-is-the-product web strategy. Show a plain
+  // confirmation instead and sign the tab back out.
+  bool _recoveryJustCompleted = false;
 
   @override
   void initState() {
@@ -82,13 +94,25 @@ class _AuthGateState extends ConsumerState<AuthGate> {
         markRecoveryPending();
       } else if (event == AuthChangeEvent.userUpdated && _inPasswordRecovery) {
         // updatePassword() succeeded — release the gate.
-        setState(() => _inPasswordRecovery = false);
+        setState(() {
+          _inPasswordRecovery = false;
+          if (kIsWeb) _recoveryJustCompleted = true;
+        });
         clearRecoveryPending();
+        if (kIsWeb) {
+          ref.read(authServiceProvider).signOut();
+        }
       }
     });
 
     if (_checkingPersistedRecoveryFlag) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_recoveryJustCompleted) {
+      return _RecoveryCompleteScreen(
+        onDone: () => setState(() => _recoveryJustCompleted = false),
+      );
     }
 
     return authState.when(
@@ -177,6 +201,45 @@ class _AuthGateState extends ConsumerState<AuthGate> {
           data: (profile) => profile == null ? const EditProfileScreen() : const HomeShell(),
         );
       },
+    );
+  }
+}
+
+/// Shown on web after a password-reset link successfully sets a new
+/// password — tells the student to go log in on the app instead of falling
+/// through to the full marketplace UI inside a browser tab.
+///
+/// Has its own explicit way forward (rather than relying on the browser's
+/// back button, whose behavior here depends on how the email link was
+/// opened — new tab vs. same tab — and isn't something this app controls).
+class _RecoveryCompleteScreen extends StatelessWidget {
+  final VoidCallback onDone;
+
+  const _RecoveryCompleteScreen({required this.onDone});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xxl),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: StatusBanner(
+                icon: Icons.check_circle_outline,
+                title: 'Password updated',
+                detail: 'You can now log in with your new password in the UniLink app.',
+                variant: StatusVariant.success,
+                action: SizedBox(
+                  width: double.infinity,
+                  child: PrimaryButton(label: 'Back to UniLink', onPressed: onDone),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
