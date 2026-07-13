@@ -6,7 +6,7 @@ const _prefsKey = 'theme_mode';
 
 /// Persists the user's System/Light/Dark choice across launches.
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier() : super(ThemeMode.system) {
+  ThemeModeNotifier() : super(ThemeMode.light) {
     _load();
   }
 
@@ -14,9 +14,10 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_prefsKey);
     state = switch (saved) {
-      'light' => ThemeMode.light,
       'dark' => ThemeMode.dark,
-      _ => ThemeMode.system,
+      // 'system' may exist from before the System option was removed —
+      // treat it (and anything else unset) as Light.
+      _ => ThemeMode.light,
     };
   }
 

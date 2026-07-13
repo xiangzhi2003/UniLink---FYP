@@ -31,3 +31,10 @@ final currentProfileProvider = FutureProvider<UserProfile?>((ref) async {
 
   return ref.watch(profileServiceProvider).getProfile(user.id);
 });
+
+/// Any user's `profiles` row by id — used by the read-only seller profile
+/// screen, unlike [currentProfileProvider] which is always the signed-in user.
+final profileByIdProvider =
+    FutureProvider.family<UserProfile?, String>((ref, userId) async {
+  return ref.watch(profileServiceProvider).getProfile(userId);
+});

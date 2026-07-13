@@ -11,3 +11,26 @@ class EscrowCheckoutResponse(BaseModel):
 
 class EscrowStatusResponse(BaseModel):
     escrow_status: str  # pending | held | captured | refunded
+
+
+class EscrowStartRequest(BaseModel):
+    listing_id: str
+    seller_id: str
+    type: str  # "sale" | "rent"
+
+
+class EscrowStartResponse(BaseModel):
+    checkout_url: str
+    session_id: str
+
+
+class EscrowConfirmCreateRequest(BaseModel):
+    session_id: str
+    listing_id: str
+    seller_id: str
+    type: str
+
+
+class EscrowConfirmCreateResponse(BaseModel):
+    transaction_id: str | None
+    escrow_status: str  # pending (not paid yet) | held (deal now created)

@@ -1,17 +1,17 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/listing.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/chat_provider.dart';
-import '../../providers/transaction_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/app_tokens.dart';
-import '../../utils/error_messages.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/favorite_button.dart';
 import '../../widgets/status_chip.dart';
 import '../chat/chat_detail_screen.dart';
-import '../transactions/transaction_detail_screen.dart';
+import '../profile/seller_profile_screen.dart';
+import '../transactions/pending_purchase_screen.dart';
 
 /// Full listing view: photo gallery, all details, seller row, and actions
 /// (Buy/Book starts a deal → QR handshake; Message Seller opens a chat).
@@ -21,13 +21,13 @@ class ListingDetailScreen extends ConsumerStatefulWidget {
   const ListingDetailScreen({super.key, required this.listing});
 
   @override
-  ConsumerState<ListingDetailScreen> createState() => _ListingDetailScreenState();
+  ConsumerState<ListingDetailScreen> createState() =>
+      _ListingDetailScreenState();
 }
 
 class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
   final _pageController = PageController();
   int _currentPhoto = 0;
-  bool _booking = false;
 
   @override
   void dispose() {
@@ -35,40 +35,58 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
     super.dispose();
   }
 
-  Future<void> _startDeal() async {
+  /// No deal/transaction is created here — that only happens once payment is
+  /// actually confirmed held, in [PendingPurchaseScreen]. Tapping Buy/Book
+  /// and backing out without paying now leaves no trace in My Deals.
+  void _startDeal() {
     final listing = widget.listing;
     if (listing.status != 'active') return;
 
     final myId = ref.read(authServiceProvider).currentUser?.id;
-
     if (myId == listing.sellerId) {
       _comingSoonSnack("That's your own listing.");
       return;
     }
 
-    setState(() => _booking = true);
-    try {
-      final dealId = await ref.read(transactionServiceProvider).createTransaction(
-            listingId: listing.id!,
-            sellerId: listing.sellerId,
-            type: listing.listingType,
-          );
-      if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => TransactionDetailScreen(dealId: dealId)),
-      );
-    } catch (e) {
-      if (mounted) _comingSoonSnack(friendlyErrorMessage(e));
-    } finally {
-      if (mounted) setState(() => _booking = false);
-    }
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => PendingPurchaseScreen(listing: listing)),
+    );
   }
 
   void _comingSoonSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _messageSeller() async {
+  Future<void> _shareListing(Listing listing) async {
+    final isRent = listing.listingType == 'rent';
+    final priceText =
+        'RM ${listing.price.toStringAsFixed(2)}${isRent ? ' / day' : ''}';
+    await Clipboard.setData(
+      ClipboardData(text: '${listing.title} — $priceText\n\nvia UniLink'),
+    );
+    if (mounted)
+      _comingSoonSnack('Listing details copied — paste it anywhere to share.');
+  }
+
+  /// "today" / "N days ago" / "N weeks ago" / "N months ago" — no package
+  /// needed for this coarse a granularity.
+  String _postedAgo(DateTime? createdAt) {
+    if (createdAt == null) return '';
+    final diff = DateTime.now().difference(createdAt);
+    if (diff.inDays <= 0) return 'Posted today';
+    if (diff.inDays == 1) return 'Posted yesterday';
+    if (diff.inDays < 7) return 'Posted ${diff.inDays} days ago';
+    if (diff.inDays < 30)
+      return 'Posted ${(diff.inDays / 7).floor()} weeks ago';
+    return 'Posted ${(diff.inDays / 30).floor()} months ago';
+  }
+
+  /// No conversation row is created here — [ChatDetailScreen] only creates
+  /// one on the first message actually sent, so opening this and backing out
+  /// without typing anything no longer leaves an empty "New chat" behind.
+  void _messageSeller() {
     final listing = widget.listing;
     final myId = ref.read(authServiceProvider).currentUser?.id;
     if (myId == listing.sellerId) {
@@ -76,23 +94,15 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
       return;
     }
 
-    try {
-      final convoId = await ref.read(chatServiceProvider).getOrCreateConversation(
-            listingId: listing.id!,
-            sellerId: listing.sellerId,
-          );
-      if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ChatDetailScreen(
-            conversationId: convoId,
-            title: listing.sellerName ?? 'Seller',
-          ),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChatDetailScreen(
+          listingId: listing.id!,
+          sellerId: listing.sellerId,
+          title: listing.sellerName ?? 'Seller',
         ),
-      );
-    } catch (e) {
-      if (mounted) _comingSoonSnack(friendlyErrorMessage(e));
-    }
+      ),
+    );
   }
 
   /// Maps a non-active listing status to a display label + [StatusVariant]
@@ -128,58 +138,96 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
               // --- Photo gallery ---
               AspectRatio(
                 aspectRatio: 4 / 3,
-                child: listing.imageUrls.isEmpty
-                    ? ColoredBox(
-                        color: scheme.surfaceContainerHighest,
-                        child: Icon(Icons.image_not_supported_outlined,
-                            size: 48, color: scheme.onSurfaceVariant),
-                      )
-                    : Stack(
-                        children: [
-                          PageView.builder(
-                            controller: _pageController,
-                            itemCount: listing.imageUrls.length,
-                            onPageChanged: (index) =>
-                                setState(() => _currentPhoto = index),
-                            itemBuilder: (context, index) => CachedNetworkImage(
-                              imageUrl: listing.imageUrls[index],
-                              fit: BoxFit.cover,
-                              placeholder: (_, __) => ColoredBox(
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child:
+                          listing.imageUrls.isEmpty
+                              ? ColoredBox(
                                 color: scheme.surfaceContainerHighest,
-                                child: const Center(child: CircularProgressIndicator()),
-                              ),
-                              errorWidget: (_, __, ___) => ColoredBox(
-                                color: scheme.surfaceContainerHighest,
-                                child: Icon(Icons.broken_image_outlined,
-                                    color: scheme.onSurfaceVariant),
-                              ),
-                            ),
-                          ),
-                          if (listing.imageUrls.length > 1)
-                            Positioned(
-                              bottom: 10,
-                              left: 0,
-                              right: 0,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  for (var i = 0; i < listing.imageUrls.length; i++)
-                                    Container(
-                                      width: 8,
-                                      height: 8,
-                                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: i == _currentPhoto
-                                            ? scheme.secondary
-                                            : Colors.white.withValues(alpha: 0.6),
-                                      ),
+                                child: Icon(
+                                  Icons.image_not_supported_outlined,
+                                  size: 48,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              )
+                              : PageView.builder(
+                                controller: _pageController,
+                                itemCount: listing.imageUrls.length,
+                                onPageChanged:
+                                    (index) =>
+                                        setState(() => _currentPhoto = index),
+                                itemBuilder:
+                                    (context, index) => CachedNetworkImage(
+                                      imageUrl: listing.imageUrls[index],
+                                      fit: BoxFit.cover,
+                                      placeholder:
+                                          (_, __) => ColoredBox(
+                                            color:
+                                                scheme.surfaceContainerHighest,
+                                            child: const Center(
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            ),
+                                          ),
+                                      errorWidget:
+                                          (_, __, ___) => ColoredBox(
+                                            color:
+                                                scheme.surfaceContainerHighest,
+                                            child: Icon(
+                                              Icons.broken_image_outlined,
+                                              color: scheme.onSurfaceVariant,
+                                            ),
+                                          ),
                                     ),
-                                ],
                               ),
-                            ),
-                        ],
+                    ),
+                    if (listing.imageUrls.length > 1)
+                      Positioned(
+                        bottom: 10,
+                        left: 0,
+                        right: 0,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            for (var i = 0; i < listing.imageUrls.length; i++)
+                              Container(
+                                width: 8,
+                                height: 8,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color:
+                                      i == _currentPhoto
+                                          ? scheme.secondary
+                                          : Colors.white.withValues(alpha: 0.6),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
+                    if (listing.id != null)
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Row(
+                          children: [
+                            FavoriteButton(
+                              listingId: listing.id!,
+                              size: FavoriteButtonSize.large,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            _CircleIconButton(
+                              icon: Icons.share_outlined,
+                              onTap: () => _shareListing(listing),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.xl),
@@ -198,9 +246,10 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                         const SizedBox(width: AppSpacing.sm),
                         StatusChip(
                           label: listing.condition == 'new' ? 'New' : 'Used',
-                          variant: listing.condition == 'new'
-                              ? StatusVariant.success
-                              : StatusVariant.neutral,
+                          variant:
+                              listing.condition == 'new'
+                                  ? StatusVariant.success
+                                  : StatusVariant.neutral,
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         _badge(
@@ -212,53 +261,124 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                       ],
                     ),
                     const SizedBox(height: 14),
-                    Text(listing.title, style: Theme.of(context).textTheme.headlineSmall),
+                    Text(
+                      listing.title,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: AppSpacing.md,
+                      runSpacing: AppSpacing.xs,
+                      children: [
+                        if (listing.location != null &&
+                            listing.location!.trim().isNotEmpty)
+                          _metaRow(
+                            context,
+                            Icons.location_on_outlined,
+                            listing.location!,
+                          ),
+                        if (listing.createdAt != null)
+                          _metaRow(
+                            context,
+                            Icons.schedule_outlined,
+                            _postedAgo(listing.createdAt),
+                          ),
+                      ],
+                    ),
+                    if (listing.tags.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Wrap(
+                        spacing: AppSpacing.xs,
+                        runSpacing: AppSpacing.xs,
+                        children: [
+                          for (final tag in listing.tags)
+                            Text(
+                              '#$tag',
+                              style: TextStyle(
+                                color: scheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 6),
                     Row(
                       children: [
                         Text(
                           'RM ${listing.price.toStringAsFixed(2)}${isRent ? ' / day' : ''}',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                color: scheme.secondary,
-                              ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(color: scheme.secondary),
                         ),
                         if (!isActive) ...[
                           const SizedBox(width: AppSpacing.sm),
-                          Builder(builder: (context) {
-                            final (label, variant) = _statusDisplay(listing.status);
-                            return StatusChip(label: label, variant: variant);
-                          }),
+                          Builder(
+                            builder: (context) {
+                              final (label, variant) = _statusDisplay(
+                                listing.status,
+                              );
+                              return StatusChip(label: label, variant: variant);
+                            },
+                          ),
                         ],
                       ],
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     // --- Seller ---
-                    Container(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      decoration: BoxDecoration(
-                        color: scheme.surface,
+                    Material(
+                      color: scheme.surface,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      child: InkWell(
                         borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(color: scheme.outlineVariant),
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: scheme.primary,
-                            child: Text(
-                              sellerName.isNotEmpty ? sellerName[0].toUpperCase() : '?',
-                              style: TextStyle(color: scheme.onPrimary),
+                        onTap:
+                            () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder:
+                                    (_) => SellerProfileScreen(
+                                      sellerId: listing.sellerId,
+                                    ),
+                              ),
                             ),
+                        child: Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                            border: Border.all(color: scheme.outlineVariant),
                           ),
-                          const SizedBox(width: AppSpacing.md),
-                          Expanded(
-                            child: Text(sellerName,
-                                style: const TextStyle(fontWeight: FontWeight.w700)),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: scheme.primary,
+                                child: Text(
+                                  sellerName.isNotEmpty
+                                      ? sellerName[0].toUpperCase()
+                                      : '?',
+                                  style: TextStyle(color: scheme.onPrimary),
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Text(
+                                  sellerName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
-                    Text('DESCRIPTION', style: Theme.of(context).textTheme.labelLarge),
+                    Text(
+                      'DESCRIPTION',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       listing.description,
@@ -269,10 +389,12 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: PrimaryButton(
-                        label: isActive ? (isRent ? 'Book' : 'Buy') : _statusDisplay(listing.status).$1,
+                        label:
+                            isActive
+                                ? (isRent ? 'Book' : 'Buy')
+                                : _statusDisplay(listing.status).$1,
                         icon: isActive ? Icons.shield_outlined : null,
-                        isLoading: _booking,
-                        onPressed: isActive && !_booking ? _startDeal : null,
+                        onPressed: isActive ? _startDeal : null,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -294,8 +416,12 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
     );
   }
 
-  Widget _badge(BuildContext context, String text,
-      {required Color background, required Color foreground}) {
+  Widget _badge(
+    BuildContext context,
+    String text, {
+    required Color background,
+    required Color foreground,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -309,6 +435,45 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.6,
+        ),
+      ),
+    );
+  }
+
+  Widget _metaRow(BuildContext context, IconData icon, String text) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: scheme.onSurfaceVariant),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+        ),
+      ],
+    );
+  }
+}
+
+class _CircleIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _CircleIconButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.45),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Icon(icon, color: Colors.white, size: 22),
         ),
       ),
     );

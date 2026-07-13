@@ -2,6 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from models.escrow import (
     EscrowCheckoutResponse,
+    EscrowConfirmCreateRequest,
+    EscrowConfirmCreateResponse,
+    EscrowStartRequest,
+    EscrowStartResponse,
     EscrowStatusResponse,
     EscrowTransactionRequest,
 )
@@ -24,6 +28,40 @@ def _load_transaction(transaction_id: str) -> dict:
     if not row.data:
         raise HTTPException(status_code=404, detail="Transaction not found")
     return row.data
+
+
+@router.post("/start", response_model=EscrowStartResponse)
+async def start(
+    payload: EscrowStartRequest,
+    user_id: str = Depends(current_user_id),
+):
+    """Buyer starts payment for a listing directly — no transaction row is
+    created here. One only gets written in /confirm-and-create, once payment
+    is actually held, so tapping Buy/Book and never paying leaves no trace."""
+    if user_id == payload.seller_id:
+        raise HTTPException(status_code=400, detail="You can't buy your own listing")
+
+    session_id, url = escrow_service.create_checkout_session_for_listing(
+        payload.listing_id, payload.seller_id, user_id, payload.type
+    )
+    return EscrowStartResponse(checkout_url=url, session_id=session_id)
+
+
+@router.post("/confirm-and-create", response_model=EscrowConfirmCreateResponse)
+async def confirm_and_create(
+    payload: EscrowConfirmCreateRequest,
+    user_id: str = Depends(current_user_id),
+):
+    """Called when the app returns from Checkout for a deal started via
+    /start. Creates the transaction for the first time, but only if payment
+    is confirmed held — otherwise returns a null transaction_id so the app
+    knows to keep waiting. Idempotent."""
+    transaction_id, escrow_status = escrow_service.confirm_and_create(
+        payload.session_id, payload.listing_id, payload.seller_id, user_id, payload.type
+    )
+    return EscrowConfirmCreateResponse(
+        transaction_id=transaction_id, escrow_status=escrow_status
+    )
 
 
 @router.post("/create", response_model=EscrowCheckoutResponse)

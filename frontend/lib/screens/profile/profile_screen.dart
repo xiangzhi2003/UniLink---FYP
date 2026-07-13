@@ -8,6 +8,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/colored_header.dart';
 import '../../widgets/stamp_mark.dart';
+import '../marketplace/favorites_screen.dart';
 import '../marketplace/my_listings_screen.dart';
 import '../transactions/transactions_list_screen.dart';
 import 'edit_profile_screen.dart';
@@ -117,6 +118,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: _QuickAction(
+                        icon: Icons.favorite_border,
+                        label: 'Favorites',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -146,15 +157,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ],
                       ),
                       const SizedBox(height: AppSpacing.sm),
-                      SegmentedButton<ThemeMode>(
-                        segments: const [
-                          ButtonSegment(value: ThemeMode.system, label: Text('System')),
-                          ButtonSegment(value: ThemeMode.light, label: Text('Light')),
-                          ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
-                        ],
-                        selected: {themeMode},
-                        onSelectionChanged: (selection) =>
-                            ref.read(themeModeProvider.notifier).setThemeMode(selection.first),
+                      SizedBox(
+                        width: double.infinity,
+                        child: SegmentedButton<ThemeMode>(
+                          segments: const [
+                            ButtonSegment(value: ThemeMode.light, label: Text('Light')),
+                            ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+                          ],
+                          selected: {
+                            themeMode == ThemeMode.dark ? ThemeMode.dark : ThemeMode.light,
+                          },
+                          onSelectionChanged: (selection) => ref
+                              .read(themeModeProvider.notifier)
+                              .setThemeMode(selection.first),
+                        ),
                       ),
                     ],
                   ),
@@ -191,11 +207,19 @@ class _QuickAction extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return AppCard(
       onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: AppSpacing.md),
       child: Column(
         children: [
           Icon(icon, color: scheme.primary),
           const SizedBox(height: AppSpacing.sm),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              maxLines: 1,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+            ),
+          ),
         ],
       ),
     );

@@ -7,27 +7,6 @@ class TransactionService {
   static const _select =
       '*, listings(title, price, image_urls), buyer:profiles!buyer_id(full_name), seller:profiles!seller_id(full_name)';
 
-  /// Creates a deal for [listingId] with the current user as buyer. Returns
-  /// the new transaction id. (Payment is inserted before this in Sprint 3B.)
-  Future<String> createTransaction({
-    required String listingId,
-    required String sellerId,
-    required String type,
-  }) async {
-    final userId = supabase.auth.currentSession!.user.id;
-    final row = await supabase
-        .from('transactions')
-        .insert({
-          'listing_id': listingId,
-          'buyer_id': userId,
-          'seller_id': sellerId,
-          'type': type,
-        })
-        .select('id')
-        .single();
-    return row['id'] as String;
-  }
-
   /// All deals where the current user is buyer or seller, newest first.
   Future<List<TransactionDeal>> fetchMyDeals() async {
     final userId = supabase.auth.currentSession!.user.id;

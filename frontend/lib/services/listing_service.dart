@@ -61,7 +61,11 @@ class ListingService {
   /// name joined in. Optional category filter and keyword search (basic
   /// ilike on title/description — the temporary fallback until Sprint 3C's
   /// RAG search replaces it).
-  Future<List<Listing>> fetchActiveListings({String? category, String? query}) async {
+  Future<List<Listing>> fetchActiveListings({
+    String? category,
+    String? query,
+    String? listingType,
+  }) async {
     var request = supabase
         .from('listings')
         .select('*, profiles(full_name)')
@@ -70,12 +74,28 @@ class ListingService {
     if (category != null) {
       request = request.eq('category', category);
     }
+    if (listingType != null) {
+      request = request.eq('listing_type', listingType);
+    }
     if (query != null && query.trim().isNotEmpty) {
       final q = query.trim();
       request = request.or('title.ilike.%$q%,description.ilike.%$q%');
     }
 
     final rows = await request.order('created_at', ascending: false);
+    return (rows as List<dynamic>)
+        .map((row) => Listing.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// A seller's active listings, for the read-only seller profile screen.
+  Future<List<Listing>> fetchListingsBySeller(String sellerId) async {
+    final rows = await supabase
+        .from('listings')
+        .select('*, profiles(full_name)')
+        .eq('seller_id', sellerId)
+        .eq('status', 'active')
+        .order('created_at', ascending: false);
     return (rows as List<dynamic>)
         .map((row) => Listing.fromJson(row as Map<String, dynamic>))
         .toList();

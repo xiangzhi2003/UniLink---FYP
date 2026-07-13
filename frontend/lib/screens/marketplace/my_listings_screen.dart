@@ -119,7 +119,9 @@ class MyListingsScreenState extends ConsumerState<MyListingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
+    return Scaffold(
+      appBar: AppBar(title: const Text('My Listings')),
+      body: RefreshIndicator(
       onRefresh: _onRefresh,
       child: AsyncStateView<List<Listing>>(
         future: _listingsFuture,
@@ -210,6 +212,7 @@ class MyListingsScreenState extends ConsumerState<MyListingsScreen> {
             },
           );
         },
+      ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/listing.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/listing_provider.dart';
 import '../../theme/app_tokens.dart';
 import '../../widgets/async_state_view.dart';
@@ -26,8 +27,15 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
   static const _tabs = ['All', ...Listing.categories];
   static const _debounceDuration = Duration(milliseconds: 350);
 
+  static const _typeTabs = {
+    'All': null,
+    'For Sale': 'sale',
+    'For Rent': 'rent',
+  };
+
   final _searchController = TextEditingController();
   String _selectedTab = 'All';
+  String _selectedTypeTab = 'All';
   String _query = '';
   Timer? _debounce;
 
@@ -40,9 +48,12 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
   }
 
   Future<List<Listing>> _fetch() async {
-    return ref.read(listingServiceProvider).fetchActiveListings(
+    return ref
+        .read(listingServiceProvider)
+        .fetchActiveListings(
           category: _selectedTab == 'All' ? null : _selectedTab,
           query: _query,
+          listingType: _typeTabs[_selectedTypeTab],
         );
   }
 
@@ -97,7 +108,9 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
             children: [
               Text(
                 'What are you looking for?',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white),
+                style: Theme.of(
+                  context,
+                ).textTheme.headlineSmall?.copyWith(color: Colors.white),
               ),
               const SizedBox(height: AppSpacing.md),
               Container(
@@ -114,14 +127,20 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
                     hintStyle: const TextStyle(color: Color(0xFF6B7280)),
                     filled: true,
                     fillColor: Colors.white,
-                    prefixIcon: const Icon(Icons.search, color: Color(0xFF6B7280)),
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: Color(0xFF6B7280),
+                    ),
                     suffixIcon: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (_query.isNotEmpty)
                           IconButton(
                             tooltip: 'Clear search',
-                            icon: const Icon(Icons.close, color: Color(0xFF6B7280)),
+                            icon: const Icon(
+                              Icons.close,
+                              color: Color(0xFF6B7280),
+                            ),
                             onPressed: () {
                               _debounce?.cancel();
                               _searchController.clear();
@@ -137,7 +156,9 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
                           onPressed: () {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Try the AI Search tab below for natural-language search'),
+                                content: Text(
+                                  'Try the AI Search tab below for natural-language search',
+                                ),
                               ),
                             );
                           },
@@ -184,8 +205,12 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
                     selected: _selectedTab == tab,
                     selectedColor: scheme.primary,
                     labelStyle: TextStyle(
-                      color: _selectedTab == tab ? scheme.onPrimary : scheme.onSurface,
+                      color:
+                          _selectedTab == tab
+                              ? scheme.onPrimary
+                              : scheme.onSurface,
                       fontSize: 13,
+                      fontWeight: FontWeight.w700,
                     ),
                     onSelected: (_) {
                       setState(() {
@@ -198,49 +223,99 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
             ],
           ),
         ),
+        SizedBox(
+          height: 40,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                for (final tab in _typeTabs.keys)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 25),
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          _selectedTypeTab = tab;
+                          _listingsFuture = _fetch();
+                        });
+                      },
+                      child: Text(
+                        tab,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color:
+                              _selectedTypeTab == tab
+                                  ? scheme.primary
+                                  : scheme.onSurfaceVariant,
+                          fontWeight:
+                              _selectedTypeTab == tab
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
         Expanded(
           child: RefreshIndicator(
             onRefresh: _onRefresh,
             child: AsyncStateView<List<Listing>>(
               future: _listingsFuture,
-              loadingSkeleton: const GridSkeleton(crossAxisCount: 2, itemCount: 6),
+              loadingSkeleton: const GridSkeleton(
+                crossAxisCount: 2,
+                itemCount: 6,
+              ),
               isEmpty: (listings) => listings.isEmpty,
               emptyState: EmptyState(
                 icon: Icons.storefront_outlined,
                 title: _query.isEmpty ? 'No listings yet' : 'No results',
-                message: _query.isEmpty
-                    ? 'Be the first to sell something!'
-                    : 'No results for "$_query"',
+                message:
+                    _query.isEmpty
+                        ? 'Be the first to sell something!'
+                        : 'No results for "$_query"',
               ),
               builder: (context, listings) {
                 return LayoutBuilder(
                   builder: (context, constraints) {
-                    final columns = constraints.maxWidth >= 900
-                        ? 4
-                        : constraints.maxWidth >= 600
+                    final columns =
+                        constraints.maxWidth >= 900
+                            ? 4
+                            : constraints.maxWidth >= 600
                             ? 3
                             : 2;
-                    return GridView.builder(
+                    final myId = ref.read(authServiceProvider).currentUser?.id;
+                    final mine =
+                        listings.where((l) => l.sellerId == myId).toList();
+                    final others =
+                        listings.where((l) => l.sellerId != myId).toList();
+
+                    return ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: columns,
-                        mainAxisSpacing: AppSpacing.md,
-                        crossAxisSpacing: AppSpacing.md,
-                        childAspectRatio: 0.72,
-                      ),
-                      itemCount: listings.length,
-                      itemBuilder: (context, index) {
-                        final listing = listings[index];
-                        return ListingCard(
-                          listing: listing,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ListingDetailScreen(listing: listing),
-                            ),
+                      children: [
+                        if (mine.isNotEmpty) ...[
+                          _sectionHeader(context, 'Your Listings', mine.length),
+                          Transform.translate(
+                            offset: const Offset(0, -20),
+                            child: _buildGrid(mine, columns),
                           ),
-                        );
-                      },
+                        ],
+                        if (others.isNotEmpty) ...[
+                          _sectionHeader(
+                            context,
+                            'Other Listings',
+                            others.length,
+                          ),
+                          Transform.translate(
+                            offset: const Offset(0, -20),
+                            child: _buildGrid(others, columns),
+                          ),
+                        ],
+                      ],
                     );
                   },
                 );
@@ -249,6 +324,63 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _sectionHeader(BuildContext context, String label, int count) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 5, 4, 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              height: 1,
+              leadingDistribution: TextLeadingDistribution.even,
+            ),
+          ),
+          Text(
+            '$count item${count == 1 ? '' : 's'}',
+            style: TextStyle(
+              color: scheme.onSurfaceVariant,
+              fontSize: 13,
+              height: 1,
+              leadingDistribution: TextLeadingDistribution.even,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGrid(List<Listing> listings, int columns) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        mainAxisSpacing: AppSpacing.sm,
+        crossAxisSpacing: AppSpacing.sm,
+        childAspectRatio: 0.72,
+      ),
+      itemCount: listings.length,
+      itemBuilder: (context, index) {
+        final listing = listings[index];
+        return ListingCard(
+          listing: listing,
+          onTap:
+              () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ListingDetailScreen(listing: listing),
+                ),
+              ),
+        );
+      },
     );
   }
 }

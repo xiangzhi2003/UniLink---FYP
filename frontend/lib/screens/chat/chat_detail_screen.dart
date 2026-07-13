@@ -7,11 +7,25 @@ import '../../theme/app_tokens.dart';
 import '../../widgets/colored_header.dart';
 
 /// A single conversation, updating live via Supabase Realtime.
+///
+/// Pass either [conversationId] (an existing thread) or [listingId] +
+/// [sellerId] (opened from "Message Seller" before any conversation exists).
+/// In the latter case, no row is created until the first message is
+/// actually sent — opening the screen and backing out without typing
+/// anything leaves no empty conversation behind.
 class ChatDetailScreen extends ConsumerStatefulWidget {
-  final String conversationId;
+  final String? conversationId;
+  final String? listingId;
+  final String? sellerId;
   final String title;
 
-  const ChatDetailScreen({super.key, required this.conversationId, required this.title});
+  const ChatDetailScreen({
+    super.key,
+    this.conversationId,
+    this.listingId,
+    this.sellerId,
+    required this.title,
+  }) : assert(conversationId != null || (listingId != null && sellerId != null));
 
   @override
   ConsumerState<ChatDetailScreen> createState() => _ChatDetailScreenState();
@@ -22,12 +36,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   final _scrollController = ScrollController();
   bool _sending = false;
   int _lastMessageCount = 0;
+  String? _conversationId;
 
   @override
   void initState() {
     super.initState();
-    // Mark the other person's messages as read when I open the thread.
-    ref.read(chatServiceProvider).markRead(widget.conversationId);
+    _conversationId = widget.conversationId;
+    if (_conversationId != null) {
+      // Mark the other person's messages as read when I open the thread.
+      ref.read(chatServiceProvider).markRead(_conversationId!);
+    }
   }
 
   Future<void> _send() async {
@@ -36,7 +54,15 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     setState(() => _sending = true);
     _controller.clear();
     try {
-      await ref.read(chatServiceProvider).sendMessage(widget.conversationId, text);
+      final conversationId = _conversationId ??
+          await ref.read(chatServiceProvider).getOrCreateConversation(
+                listingId: widget.listingId!,
+                sellerId: widget.sellerId!,
+              );
+      await ref.read(chatServiceProvider).sendMessage(conversationId, text);
+      if (mounted && _conversationId == null) {
+        setState(() => _conversationId = conversationId);
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -120,8 +146,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
             ),
           ),
           Expanded(
-            child: StreamBuilder<List<Message>>(
-              stream: ref.read(chatServiceProvider).messagesStream(widget.conversationId),
+            child: _conversationId == null
+                ? Center(
+                    child: Text('Say hello 👋', style: TextStyle(color: scheme.onSurfaceVariant)),
+                  )
+                : StreamBuilder<List<Message>>(
+              stream: ref.read(chatServiceProvider).messagesStream(_conversationId!),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
@@ -130,7 +160,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                 // New message arrived / opened → mark read + scroll to bottom
                 // (only when the message count genuinely increased, so we
                 // don't jar the user on every unrelated rebuild).
-                ref.read(chatServiceProvider).markRead(widget.conversationId);
+                ref.read(chatServiceProvider).markRead(_conversationId!);
                 _scrollToBottomIfNewMessage(messages.length);
 
                 if (messages.isEmpty) {

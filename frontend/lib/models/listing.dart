@@ -15,6 +15,9 @@ class Listing {
   /// on the listings table itself.
   final String? sellerName;
 
+  final List<String> tags;
+  final String? location;
+
   static const categories = ['Textbooks', 'Electronics', 'Equipment', 'Others'];
 
   const Listing({
@@ -30,6 +33,8 @@ class Listing {
     required this.imageUrls,
     this.createdAt,
     this.sellerName,
+    this.tags = const [],
+    this.location,
   });
 
   factory Listing.fromJson(Map<String, dynamic> json) {
@@ -48,6 +53,8 @@ class Listing {
           ? null
           : DateTime.parse(json['created_at'] as String),
       sellerName: (json['profiles'] as Map<String, dynamic>?)?['full_name'] as String?,
+      tags: (json['tags'] as List<dynamic>?)?.cast<String>() ?? const [],
+      location: json['location'] as String?,
     );
   }
 
@@ -63,6 +70,8 @@ class Listing {
       'listing_type': listingType,
       'status': status,
       'image_urls': imageUrls,
+      'tags': tags,
+      'location': location,
     };
   }
 
@@ -76,6 +85,8 @@ class Listing {
       'condition': condition,
       'listing_type': listingType,
       'image_urls': imageUrls,
+      'tags': tags,
+      'location': location,
       'updated_at': DateTime.now().toIso8601String(),
     };
   }

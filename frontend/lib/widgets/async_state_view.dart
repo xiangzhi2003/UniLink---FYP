@@ -106,7 +106,17 @@ class GridSkeleton extends StatelessWidget {
   final int crossAxisCount;
   final int itemCount;
 
-  const GridSkeleton({super.key, this.crossAxisCount = 2, this.itemCount = 6});
+  /// Set true when this sits inside an already-scrolling, unbounded-height
+  /// parent (e.g. a `SingleChildScrollView`) instead of a bounded one like
+  /// `Expanded` — otherwise the grid crashes with an unbounded-height error.
+  final bool shrinkWrap;
+
+  const GridSkeleton({
+    super.key,
+    this.crossAxisCount = 2,
+    this.itemCount = 6,
+    this.shrinkWrap = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +126,8 @@ class GridSkeleton extends StatelessWidget {
       highlightColor: scheme.outline.withValues(alpha: 0.3),
       child: GridView.builder(
         padding: const EdgeInsets.all(AppSpacing.lg),
+        shrinkWrap: shrinkWrap,
+        physics: shrinkWrap ? const NeverScrollableScrollPhysics() : null,
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: crossAxisCount,
           crossAxisSpacing: AppSpacing.md,

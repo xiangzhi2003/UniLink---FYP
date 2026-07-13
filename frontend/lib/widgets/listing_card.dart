@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../models/listing.dart';
 import '../theme/app_theme.dart';
+import 'favorite_button.dart';
 import 'status_chip.dart';
 
 /// Grid card for one listing: photo, sale/rent badge, title, price,
@@ -84,6 +85,12 @@ class ListingCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (listing.id != null)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: FavoriteButton(listingId: listing.id!),
+                    ),
                 ],
               ),
             ),

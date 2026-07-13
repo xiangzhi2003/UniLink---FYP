@@ -174,12 +174,24 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (showPayButton)
+                if (showPayButton) ...[
                   ElevatedButton.icon(
                     onPressed: _busy ? null : () => _pay(deal),
                     icon: const Icon(Icons.credit_card, size: 18),
                     label: Text('Pay $amount'),
                   ),
+                  const SizedBox(height: AppSpacing.sm),
+                  OutlinedButton(
+                    onPressed: _busy ? null : () => _cancelUnpaid(deal),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.error,
+                      side: BorderSide(color: Theme.of(context).colorScheme.error),
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                    ),
+                    child: const Text('Cancel this deal'),
+                  ),
+                ],
                 if (showRefundButton) ...[
                   if (showPayButton) const SizedBox(height: AppSpacing.sm),
                   OutlinedButton(
@@ -211,6 +223,23 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
     }
     // When they come back, refresh to pick up the held status.
     if (mounted) _reload();
+  }
+
+  /// Cleans up a legacy deal that was created (before this screen required
+  /// payment up front) but never actually paid for.
+  Future<void> _cancelUnpaid(TransactionDeal deal) async {
+    setState(() => _busy = true);
+    try {
+      await ref.read(transactionServiceProvider).cancel(deal.id);
+      if (mounted) {
+        _snack('Deal cancelled.');
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) _snack(friendlyErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _refund(TransactionDeal deal) async {

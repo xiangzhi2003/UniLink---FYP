@@ -61,6 +61,46 @@ class BackendService {
     return json['checkout_url'] as String;
   }
 
+  /// Start payment for a listing directly — no deal exists yet. Returns the
+  /// Checkout URL to open plus the session id to reconcile afterwards.
+  Future<({String checkoutUrl, String sessionId})> startEscrowCheckout({
+    required String listingId,
+    required String sellerId,
+    required String type,
+  }) async {
+    final json = await _post('/escrow/start', {
+      'listing_id': listingId,
+      'seller_id': sellerId,
+      'type': type,
+    });
+    return (
+      checkoutUrl: json['checkout_url'] as String,
+      sessionId: json['session_id'] as String,
+    );
+  }
+
+  /// Call after returning from Checkout for a deal started via
+  /// [startEscrowCheckout] — creates the deal for the first time, but only
+  /// once payment is confirmed held. `transactionId` is null while still
+  /// waiting on payment.
+  Future<({String? transactionId, String escrowStatus})> confirmAndCreateEscrow({
+    required String sessionId,
+    required String listingId,
+    required String sellerId,
+    required String type,
+  }) async {
+    final json = await _post('/escrow/confirm-and-create', {
+      'session_id': sessionId,
+      'listing_id': listingId,
+      'seller_id': sellerId,
+      'type': type,
+    });
+    return (
+      transactionId: json['transaction_id'] as String?,
+      escrowStatus: json['escrow_status'] as String,
+    );
+  }
+
   /// Sync whether the payment is now held (call after returning from Checkout).
   Future<String> confirmEscrow(String transactionId) async {
     final json = await _post('/escrow/confirm', {'transaction_id': transactionId});
