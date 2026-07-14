@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../ai/ai_search_screen.dart';
 import '../chat/chat_list_screen.dart';
@@ -46,6 +47,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final unread = ref.watch(unreadCountProvider).valueOrNull ?? 0;
+    final unreadNotifications = ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
     final scheme = Theme.of(context).colorScheme;
 
     final body = switch (_tab) {
@@ -68,6 +70,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                   onSelect: _selectTab,
                   onSell: _openCreateListing,
                   chatUnreadCount: unread,
+                  profileUnreadCount: unreadNotifications,
                 ),
           body: isWide
               ? Row(
@@ -101,10 +104,16 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                           selectedIcon: const Icon(Icons.forum),
                           label: const Text('Chat'),
                         ),
-                        const NavigationRailDestination(
-                          icon: Icon(Icons.person_outline),
-                          selectedIcon: Icon(Icons.person),
-                          label: Text('Profile'),
+                        NavigationRailDestination(
+                          icon: unreadNotifications > 0
+                              ? Badge(
+                                  label: Text('$unreadNotifications'),
+                                  backgroundColor: Colors.red,
+                                  child: const Icon(Icons.person_outline),
+                                )
+                              : const Icon(Icons.person_outline),
+                          selectedIcon: const Icon(Icons.person),
+                          label: const Text('Profile'),
                         ),
                       ],
                     ),

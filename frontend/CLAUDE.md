@@ -58,6 +58,7 @@ It talks to the FastAPI backend over HTTP and to Supabase via the Supabase Flutt
 ## Watch out for
 - **QR + camera on web:** `mobile_scanner` behaves differently on web vs mobile.
   Test scanning on a real phone; on web, plan a fallback (manual code entry).
-- **Image upload size:** compress images before uploading to Supabase Storage.
+- **Image upload size:** already compressed via `image_picker`'s `imageQuality`/`maxWidth`
+  on every picker call site — keep new ones consistent with this.
 - **Web CORS:** when calling FastAPI from Flutter web, the backend must allow the
   web origin (CORS middleware). If a web call fails but mobile works, check CORS.

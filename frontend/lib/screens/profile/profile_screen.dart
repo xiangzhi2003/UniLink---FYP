@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../theme/app_tokens.dart';
 import '../../utils/error_messages.dart';
@@ -10,6 +11,7 @@ import '../../widgets/colored_header.dart';
 import '../../widgets/stamp_mark.dart';
 import '../marketplace/favorites_screen.dart';
 import '../marketplace/my_listings_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../transactions/transactions_list_screen.dart';
 import '../wallet/wallet_screen.dart';
 import 'edit_profile_screen.dart';
@@ -61,38 +63,61 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final profile = ref.watch(currentProfileProvider).valueOrNull;
     final themeMode = ref.watch(themeModeProvider);
     final scheme = Theme.of(context).colorScheme;
+    final unreadNotifications = ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
 
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ColoredHeader(
-            child: Column(
-              children: [
-                const StampMark(sealed: true, size: 72),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  profile?.fullName ?? 'Student',
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineSmall
-                      ?.copyWith(color: Colors.white),
-                  textAlign: TextAlign.center,
+          Stack(
+            children: [
+              ColoredHeader(
+                child: Column(
+                  children: [
+                    const StampMark(sealed: true, size: 72),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      profile?.fullName ?? 'Student',
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(color: Colors.white),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      profile?.email ?? '',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    if (profile?.university != null) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        profile!.university!,
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  profile?.email ?? '',
-                  style: const TextStyle(color: Colors.white70),
-                ),
-                if (profile?.university != null) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    profile!.university!,
-                    style: const TextStyle(color: Colors.white70),
+              ),
+              Positioned(
+                top: AppSpacing.headerTop,
+                right: AppSpacing.md,
+                child: SafeArea(
+                  bottom: false,
+                  child: IconButton(
+                    icon: Badge(
+                      label: Text('$unreadNotifications'),
+                      backgroundColor: Colors.red,
+                      isLabelVisible: unreadNotifications > 0,
+                      child: const Icon(Icons.notifications_outlined, color: Colors.white),
+                    ),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                    ),
                   ),
-                ],
-              ],
-            ),
+                ),
+              ),
+            ],
           ),
           Padding(
             padding: const EdgeInsets.all(AppSpacing.xl),

@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 import stripe
 
-from services import wallet_service
+from services import notification_service, wallet_service
 from services.supabase_client import get_service_client
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
@@ -24,6 +24,31 @@ def _load_transaction(transaction_id: str) -> dict:
         .execute()
     )
     return row.data
+
+
+def _notify_payment(
+    transaction_id: str, seller_id: str, buyer_id: str, amount: float, listing_title: str
+) -> None:
+    """Notify both parties that a payment just landed in escrow. Best-effort
+    — a notification failure must never break the payment flow that
+    triggered it."""
+    try:
+        notification_service.create(
+            user_id=seller_id,
+            type="payment_received",
+            title="Payment received",
+            body=f'A buyer paid RM {amount:.2f} for "{listing_title}" — funds are held in escrow.',
+            transaction_id=transaction_id,
+        )
+        notification_service.create(
+            user_id=buyer_id,
+            type="payment_successful",
+            title="Payment successful",
+            body=f'Your payment of RM {amount:.2f} for "{listing_title}" is held in escrow.',
+            transaction_id=transaction_id,
+        )
+    except Exception:
+        pass
 
 
 def create_checkout_session(transaction_id: str) -> str:
@@ -161,14 +186,15 @@ def confirm_and_create(
     if pi.status != "requires_capture":
         return None, "pending"
 
-    listing_price = float(
+    listing = (
         client.table("listings")
-        .select("price")
+        .select("title, price")
         .eq("id", listing_id)
         .single()
         .execute()
-        .data["price"]
+        .data
     )
+    listing_price = float(listing["price"])
 
     rental_days = None
     rental_start_date = None
@@ -202,7 +228,9 @@ def confirm_and_create(
         )
         .execute()
     )
-    return row.data[0]["id"], "held"
+    transaction_id = row.data[0]["id"]
+    _notify_payment(transaction_id, seller_id, buyer_id, amount, listing["title"])
+    return transaction_id, "held"
 
 
 def confirm_payment(transaction_id: str) -> str:
@@ -247,9 +275,10 @@ def pay_with_wallet(
         raise ValueError("rental_days must be a positive integer for rent deals")
 
     client = get_service_client()
-    listing_price = float(
-        client.table("listings").select("price").eq("id", listing_id).single().execute().data["price"]
+    listing = (
+        client.table("listings").select("title, price").eq("id", listing_id).single().execute().data
     )
+    listing_price = float(listing["price"])
 
     rental_start_date = rental_due_date = None
     if deal_type == "rent":
@@ -285,6 +314,7 @@ def pay_with_wallet(
         "type": "wallet_payment",
     }).execute()
 
+    _notify_payment(transaction_id, seller_id, buyer_id, amount, listing["title"])
     return transaction_id
 
 

@@ -104,14 +104,49 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
         .toList();
   }
 
+  Future<ImageSource?> _chooseImageSource() {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Take Photo'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from Gallery'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _pickImages() async {
     final remaining = _maxPhotos - _photoCount;
     if (remaining <= 0) return;
 
+    final source = await _chooseImageSource();
+    if (source == null) return;
+
     // pickMultiImage rejects limit < 2, so fall back to the single picker
-    // when only one slot is left.
+    // when only one slot is left; the camera only ever adds one photo.
     final List<XFile> picked;
-    if (remaining == 1) {
+    if (source == ImageSource.camera) {
+      final single = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 70,
+        maxWidth: 1600,
+      );
+      picked = single == null ? [] : [single];
+    } else if (remaining == 1) {
       final single = await _picker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 70,

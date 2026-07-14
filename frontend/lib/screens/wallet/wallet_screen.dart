@@ -6,7 +6,6 @@ import '../../providers/transaction_provider.dart';
 import '../../theme/app_tokens.dart';
 import '../../utils/error_messages.dart';
 import '../../widgets/app_card.dart';
-import '../../widgets/async_state_view.dart';
 import '../../widgets/colored_header.dart';
 import '../../widgets/empty_state.dart';
 
@@ -23,7 +22,13 @@ class WalletScreen extends ConsumerStatefulWidget {
 }
 
 class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBindingObserver {
-  late Future<WalletSummary> _future;
+  // Retained in state (not driven by a `Future` swap) so a refresh updates
+  // these numbers in place — same as Browse's header never disappearing on
+  // pull-to-refresh — instead of the whole screen flashing to a loading
+  // skeleton and back.
+  WalletSummary? _summary;
+  bool _initialLoading = true;
+  String? _loadError;
   String? _pendingDepositSessionId;
   bool _busy = false;
 
@@ -31,7 +36,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _future = ref.read(backendServiceProvider).fetchWalletSummary();
+    _load();
   }
 
   @override
@@ -67,21 +72,41 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
     }
   }
 
-  void _reload() {
-    setState(() {
-      _future = ref.read(backendServiceProvider).fetchWalletSummary();
-    });
+  /// Loads wallet data. On first load, shows a full loading state. On any
+  /// later call (pull-to-refresh, or after withdraw/deposit), the existing
+  /// balance/history stay on screen until the new data is ready — no flash.
+  Future<void> _load() async {
+    if (_summary == null) setState(() => _initialLoading = true);
+    try {
+      final summary = await ref.read(backendServiceProvider).fetchWalletSummary();
+      if (!mounted) return;
+      setState(() {
+        _summary = summary;
+        _initialLoading = false;
+        _loadError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      if (_summary == null) {
+        setState(() {
+          _initialLoading = false;
+          _loadError = friendlyErrorMessage(e);
+        });
+      } else {
+        // Already have data on screen — don't rip it out over a refresh
+        // hiccup, just let the user know.
+        _snack(friendlyErrorMessage(e));
+      }
+    }
   }
 
-  Future<void> _onRefresh() async {
-    final future = ref.read(backendServiceProvider).fetchWalletSummary();
-    setState(() => _future = future);
-    await future;
-  }
+  void _reload() => _load();
+
+  Future<void> _onRefresh() => _load();
 
   Future<void> _withdraw() async {
-    final summary = await _future;
-    if (!mounted) return;
+    final summary = _summary;
+    if (summary == null) return;
     final amount = await showDialog<double>(
       context: context,
       builder: (context) => _AmountDialog(
@@ -141,121 +166,133 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Wallet')),
-      body: RefreshIndicator(
-        onRefresh: _onRefresh,
-        child: AsyncStateView<WalletSummary>(
-        future: _future,
-        onRetry: _reload,
-        builder: (context, summary) {
-          return Column(
-            children: [
-              ColoredHeader(
-                child: Column(
+      body: _buildBody(context),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    if (_initialLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final summary = _summary;
+    if (summary == null) {
+      return EmptyState(
+        icon: Icons.error_outline,
+        title: 'Something went wrong',
+        message: _loadError,
+        actionLabel: 'Retry',
+        onAction: _reload,
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _onRefresh,
+      child: Column(
+        children: [
+          ColoredHeader(
+            child: Column(
+              children: [
+                Icon(Icons.account_balance_wallet_rounded,
+                    color: Colors.white.withValues(alpha: 0.85), size: 28),
+                const SizedBox(height: AppSpacing.sm),
+                const Text(
+                  'AVAILABLE BALANCE',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'RM ${summary.balance.toStringAsFixed(2)}',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          Transform.translate(
+            offset: const Offset(0, -AppSpacing.xl),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: AppCard(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.md,
+                ),
+                boxShadow: AppElevation.card,
+                child: Row(
                   children: [
-                    Icon(Icons.account_balance_wallet_rounded,
-                        color: Colors.white.withValues(alpha: 0.85), size: 28),
-                    const SizedBox(height: AppSpacing.sm),
-                    const Text(
-                      'AVAILABLE BALANCE',
+                    Expanded(
+                      child: _ActionButton(
+                        icon: Icons.add_rounded,
+                        label: 'Add funds',
+                        color: Theme.of(context).colorScheme.primary,
+                        onTap: _busy ? null : _startDeposit,
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 36,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                    Expanded(
+                      child: _ActionButton(
+                        icon: Icons.arrow_downward_rounded,
+                        label: 'Withdraw',
+                        color: Theme.of(context).colorScheme.onSurface,
+                        onTap: _busy || summary.balance <= 0 ? null : _withdraw,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg,
+              ),
+              children: [
+                if (summary.history.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(top: AppSpacing.xxxl),
+                    child: EmptyState(
+                      icon: Icons.receipt_long_outlined,
+                      title: 'No activity yet',
+                      message: 'Sell or rent out an item, or add funds, to get started.',
+                    ),
+                  )
+                else ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                    child: Text(
+                      'RECENT ACTIVITY',
                       style: TextStyle(
-                        color: Colors.white70,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        letterSpacing: 1.1,
+                        letterSpacing: 1.0,
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'RM ${summary.balance.toStringAsFixed(2)}',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              Transform.translate(
-                offset: const Offset(0, -AppSpacing.xl),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                  child: AppCard(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.md,
-                    ),
-                    boxShadow: AppElevation.card,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _ActionButton(
-                            icon: Icons.add_rounded,
-                            label: 'Add funds',
-                            color: Theme.of(context).colorScheme.primary,
-                            onTap: _busy ? null : _startDeposit,
-                          ),
-                        ),
-                        Container(
-                          width: 1,
-                          height: 36,
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
-                        Expanded(
-                          child: _ActionButton(
-                            icon: Icons.arrow_downward_rounded,
-                            label: 'Withdraw',
-                            color: Theme.of(context).colorScheme.onSurface,
-                            onTap: _busy || summary.balance <= 0 ? null : _withdraw,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg,
+                  ...summary.history.map(
+                    (entry) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: _EntryRow(entry: entry),
+                    ),
                   ),
-                  children: [
-                    if (summary.history.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: AppSpacing.xxxl),
-                        child: EmptyState(
-                          icon: Icons.receipt_long_outlined,
-                          title: 'No activity yet',
-                          message: 'Sell or rent out an item, or add funds, to get started.',
-                        ),
-                      )
-                    else ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                        child: Text(
-                          'RECENT ACTIVITY',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ),
-                      ...summary.history.map(
-                        (entry) => Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                          child: _EntryRow(entry: entry),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-        ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

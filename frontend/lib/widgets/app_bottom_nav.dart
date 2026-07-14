@@ -9,6 +9,7 @@ class AppBottomNav extends StatelessWidget {
   final ValueChanged<int> onSelect;
   final VoidCallback onSell;
   final int chatUnreadCount;
+  final int profileUnreadCount;
 
   const AppBottomNav({
     super.key,
@@ -16,6 +17,7 @@ class AppBottomNav extends StatelessWidget {
     required this.onSelect,
     required this.onSell,
     this.chatUnreadCount = 0,
+    this.profileUnreadCount = 0,
   });
 
   @override
@@ -61,6 +63,8 @@ class AppBottomNav extends StatelessWidget {
                 label: 'Profile',
                 selected: selectedIndex == 4,
                 onTap: () => onSelect(4),
+                badgeCount: profileUnreadCount,
+                badgeColor: Colors.red,
               ),
             ],
           ),
@@ -77,6 +81,7 @@ class _NavItem extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final int badgeCount;
+  final Color? badgeColor;
 
   const _NavItem({
     required this.icon,
@@ -85,6 +90,7 @@ class _NavItem extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.badgeCount = 0,
+    this.badgeColor,
   });
 
   @override
@@ -95,8 +101,8 @@ class _NavItem extends StatelessWidget {
     if (badgeCount > 0) {
       iconWidget = Badge(
         label: Text('$badgeCount'),
-        backgroundColor: AppColors.gold,
-        textColor: const Color(0xFF3A2200),
+        backgroundColor: badgeColor ?? AppColors.gold,
+        textColor: badgeColor == null ? const Color(0xFF3A2200) : Colors.white,
         child: iconWidget,
       );
     }

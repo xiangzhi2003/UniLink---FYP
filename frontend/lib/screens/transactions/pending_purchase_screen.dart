@@ -9,7 +9,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/status_banner.dart';
 import '../../widgets/status_chip.dart';
-import 'transaction_detail_screen.dart';
+import 'payment_success_screen.dart';
 
 enum _PaymentMethod { stripe, wallet }
 
@@ -92,7 +92,11 @@ class _PendingPurchaseScreenState extends ConsumerState<PendingPurchaseScreen> {
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (_) => TransactionDetailScreen(dealId: result.transactionId!),
+              builder: (_) => PaymentSuccessScreen(
+                transactionId: result.transactionId!,
+                amount: _total,
+                listingTitle: widget.listing.title,
+              ),
             ),
           );
         }
@@ -127,7 +131,13 @@ class _PendingPurchaseScreenState extends ConsumerState<PendingPurchaseScreen> {
           );
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => TransactionDetailScreen(dealId: transactionId)),
+          MaterialPageRoute(
+            builder: (_) => PaymentSuccessScreen(
+              transactionId: transactionId,
+              amount: _total,
+              listingTitle: widget.listing.title,
+            ),
+          ),
         );
       }
     } catch (e) {
