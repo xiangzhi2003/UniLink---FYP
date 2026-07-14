@@ -16,10 +16,6 @@ class WalletSummaryResponse(BaseModel):
     history: list[WalletHistoryEntry]
 
 
-class WalletWithdrawRequest(BaseModel):
-    amount: float
-
-
 class WalletDepositStartRequest(BaseModel):
     amount: float
 
@@ -35,5 +31,24 @@ class WalletDepositConfirmRequest(BaseModel):
 
 class WalletDepositConfirmResponse(BaseModel):
     credited: bool  # False if Checkout was never actually completed
+    balance: float
+    history: list[WalletHistoryEntry]
+
+
+class WalletWithdrawStartRequest(BaseModel):
+    amount: float
+
+
+class WalletWithdrawStartResponse(BaseModel):
+    checkout_url: str
+    session_id: str
+
+
+class WalletWithdrawConfirmRequest(BaseModel):
+    session_id: str
+
+
+class WalletWithdrawConfirmResponse(BaseModel):
+    credited: bool  # False if Checkout was never completed, or balance is now insufficient
     balance: float
     history: list[WalletHistoryEntry]

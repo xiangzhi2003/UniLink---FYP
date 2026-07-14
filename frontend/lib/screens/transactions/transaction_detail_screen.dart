@@ -384,12 +384,20 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
   }
 
   Future<void> _submit(TransactionDeal deal, String code) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _ConfirmingHandoverDialog(),
+    );
     try {
       final result = await ref.read(backendServiceProvider).verifyQr(deal.id, code);
       if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
       _snack(result.message);
       _reload();
     } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
       _snack(friendlyErrorMessage(e));
     }
   }
@@ -401,6 +409,35 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
 
   void _snack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+/// Non-dismissible loading dialog shown while the backend verifies the code
+/// and (on the final leg) captures escrow + credits the seller's wallet —
+/// this can take a couple of seconds, so it needs visible feedback instead
+/// of a silent wait.
+class _ConfirmingHandoverDialog extends StatelessWidget {
+  const _ConfirmingHandoverDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(child: Text('Confirming handover...', style: Theme.of(context).textTheme.bodyMedium)),
+          ],
+        ),
+      ),
+    );
   }
 }
 

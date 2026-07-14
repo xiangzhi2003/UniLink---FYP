@@ -139,6 +139,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       child: _QuickAction(
                         icon: Icons.handshake_outlined,
                         label: 'My Deals',
+                        badgeCount: unreadNotifications,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const TransactionsListScreen()),
                         ),
@@ -235,8 +236,14 @@ class _QuickAction extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final int badgeCount;
 
-  const _QuickAction({required this.icon, required this.label, required this.onTap});
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.badgeCount = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -246,7 +253,12 @@ class _QuickAction extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: AppSpacing.md),
       child: Column(
         children: [
-          Icon(icon, color: scheme.primary),
+          Badge(
+            label: Text('$badgeCount'),
+            backgroundColor: Colors.red,
+            isLabelVisible: badgeCount > 0,
+            child: Icon(icon, color: scheme.primary),
+          ),
           const SizedBox(height: AppSpacing.sm),
           FittedBox(
             fit: BoxFit.scaleDown,

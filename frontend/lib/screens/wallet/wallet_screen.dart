@@ -11,9 +11,10 @@ import '../../widgets/empty_state.dart';
 
 /// Simulated seller wallet: captured escrow payments credit this balance.
 /// No real bank transfer happens (test-mode FYP scope) — this is an in-app
-/// ledger showing what the seller has earned. Withdraw is a simulated
-/// cash-out (debit entry only); Deposit tops the balance up via a real
-/// Stripe test payment the user makes to themselves.
+/// ledger showing what the seller has earned. Both Withdraw and Deposit open
+/// a real Stripe Checkout page for the "leave the app" rhythm; Deposit
+/// actually charges a test card, Withdraw uses a $0 setup session (no charge
+/// possible — Stripe Checkout can't pay money out without Stripe Connect).
 class WalletScreen extends ConsumerStatefulWidget {
   const WalletScreen({super.key});
 
@@ -30,6 +31,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
   bool _initialLoading = true;
   String? _loadError;
   String? _pendingDepositSessionId;
+  String? _pendingWithdrawSessionId;
   bool _busy = false;
 
   @override
@@ -48,10 +50,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Returning from Stripe's browser tab — silently check whether the
-    // deposit actually went through, with no button for the user to tap.
-    if (state == AppLifecycleState.resumed && _pendingDepositSessionId != null) {
-      _checkPendingDeposit();
-    }
+    // deposit/withdrawal actually went through, with no button for the user
+    // to tap.
+    if (state != AppLifecycleState.resumed) return;
+    if (_pendingDepositSessionId != null) _checkPendingDeposit();
+    if (_pendingWithdrawSessionId != null) _checkPendingWithdraw();
   }
 
   Future<void> _checkPendingDeposit() async {
@@ -67,6 +70,23 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
       }
       // Not credited yet (buyer backed out, or Checkout hasn't settled) —
       // stay silent, same as if no deposit had been started at all.
+    } catch (_) {
+      // A background check failing shouldn't interrupt the user.
+    }
+  }
+
+  Future<void> _checkPendingWithdraw() async {
+    final sessionId = _pendingWithdrawSessionId;
+    if (sessionId == null) return;
+    try {
+      final result = await ref.read(backendServiceProvider).confirmWalletWithdrawal(sessionId);
+      if (!mounted) return;
+      if (result.credited) {
+        setState(() => _pendingWithdrawSessionId = null);
+        _snack('Withdrawal complete.');
+        _reload();
+      }
+      // Not completed yet — stay silent, same as if nothing had been started.
     } catch (_) {
       // A background check failing shouldn't interrupt the user.
     }
@@ -113,17 +133,30 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
         title: 'Withdraw funds',
         icon: Icons.arrow_downward_rounded,
         hint: 'Up to RM ${summary.balance.toStringAsFixed(2)} available',
-        helperText: 'Processed the same way as adding funds, via Stripe (test mode).',
-        confirmLabel: 'Withdraw',
+        helperText: 'Opens a Stripe test checkout, same as adding funds — no charge is made.',
+        confirmLabel: 'Continue',
         maxAmount: summary.balance,
       ),
     );
     if (amount == null || !mounted) return;
 
-    final success = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => _WithdrawProcessingScreen(amount: amount)),
-    );
-    if (success == true) _reload();
+    setState(() => _busy = true);
+    try {
+      final result = await ref.read(backendServiceProvider).startWalletWithdrawal(amount);
+      final ok = await launchUrl(
+        Uri.parse(result.checkoutUrl),
+        mode: LaunchMode.externalApplication,
+      );
+      if (ok) {
+        setState(() => _pendingWithdrawSessionId = result.sessionId);
+      } else if (mounted) {
+        _snack('Could not open the payment page.');
+      }
+    } catch (e) {
+      if (mounted) _snack(friendlyErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _startDeposit() async {
@@ -482,147 +515,3 @@ class _AmountDialogState extends State<_AmountDialog> {
   }
 }
 
-enum _WithdrawState { processing, success, error }
-
-/// Full-screen processing step for Withdraw, styled to feel like the same
-/// Stripe-checkout experience as Add funds. No real bank transfer happens
-/// either way — this simulates the wait/confirm rhythm for UX consistency.
-class _WithdrawProcessingScreen extends ConsumerStatefulWidget {
-  final double amount;
-
-  const _WithdrawProcessingScreen({required this.amount});
-
-  @override
-  ConsumerState<_WithdrawProcessingScreen> createState() => _WithdrawProcessingScreenState();
-}
-
-class _WithdrawProcessingScreenState extends ConsumerState<_WithdrawProcessingScreen> {
-  _WithdrawState _state = _WithdrawState.processing;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _process();
-  }
-
-  Future<void> _process() async {
-    await Future.delayed(const Duration(milliseconds: 1400));
-    try {
-      await ref.read(backendServiceProvider).withdrawFromWallet(widget.amount);
-      if (mounted) setState(() => _state = _WithdrawState.success);
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _state = _WithdrawState.error;
-          _error = friendlyErrorMessage(e);
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: _state != _WithdrawState.processing,
-      child: Scaffold(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.xxl),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _content(context),
-                  const SizedBox(height: AppSpacing.xxxl),
-                  const Text(
-                    'Powered by Stripe (test mode)',
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _content(BuildContext context) {
-    switch (_state) {
-      case _WithdrawState.processing:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(color: Colors.white),
-            const SizedBox(height: AppSpacing.xl),
-            const Text(
-              'Processing your withdrawal',
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'RM ${widget.amount.toStringAsFixed(2)}',
-              style: const TextStyle(color: Colors.white70, fontSize: 15),
-            ),
-          ],
-        );
-      case _WithdrawState.success:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 56),
-            const SizedBox(height: AppSpacing.xl),
-            const Text(
-              'Withdrawal successful',
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'RM ${widget.amount.toStringAsFixed(2)} withdrawn',
-              style: const TextStyle(color: Colors.white70, fontSize: 15),
-            ),
-            const SizedBox(height: AppSpacing.xxl),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Theme.of(context).colorScheme.primary,
-                minimumSize: const Size(160, 48),
-              ),
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Done'),
-            ),
-          ],
-        );
-      case _WithdrawState.error:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline_rounded, color: Colors.white, size: 56),
-            const SizedBox(height: AppSpacing.xl),
-            const Text(
-              'Withdrawal failed',
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              _error ?? 'Something went wrong',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
-            ),
-            const SizedBox(height: AppSpacing.xxl),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Theme.of(context).colorScheme.primary,
-                minimumSize: const Size(160, 48),
-              ),
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-    }
-  }
-}

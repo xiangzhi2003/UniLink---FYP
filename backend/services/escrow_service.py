@@ -354,6 +354,25 @@ def capture(transaction_id: str) -> None:
     except Exception:
         pass
 
+    listing_title = txn["listings"]["title"]
+    try:
+        notification_service.create(
+            user_id=txn["seller_id"],
+            type="payment_released",
+            title="Payment released",
+            body=f'RM {amount:.2f} for "{listing_title}" has been released to your wallet.',
+            transaction_id=transaction_id,
+        )
+        notification_service.create(
+            user_id=txn["buyer_id"],
+            type="deal_completed",
+            title="Deal completed",
+            body=f'Your handover for "{listing_title}" is confirmed. Thanks for trading safely!',
+            transaction_id=transaction_id,
+        )
+    except Exception:
+        pass
+
 
 def refund(transaction_id: str) -> None:
     """Release the hold without charging the buyer (deal cancelled before
@@ -383,3 +402,22 @@ def refund(transaction_id: str) -> None:
     client.table("transactions").update(
         {"escrow_status": "refunded", "status": "cancelled"}
     ).eq("id", transaction_id).execute()
+
+    listing_title = txn["listings"]["title"]
+    try:
+        notification_service.create(
+            user_id=txn["buyer_id"],
+            type="refund_processed",
+            title="Refund processed",
+            body=f'Your payment for "{listing_title}" was refunded — the deal was cancelled.',
+            transaction_id=transaction_id,
+        )
+        notification_service.create(
+            user_id=txn["seller_id"],
+            type="deal_cancelled",
+            title="Deal cancelled",
+            body=f'The deal for "{listing_title}" was cancelled before pickup.',
+            transaction_id=transaction_id,
+        )
+    except Exception:
+        pass

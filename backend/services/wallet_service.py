@@ -23,26 +23,59 @@ def get_balance(user_id: str) -> float:
     return sum(row["amount"] for row in rows)
 
 
-def withdraw(user_id: str, amount: float) -> float:
-    """Simulated cash-out: no real bank transfer happens (test-mode FYP
-    scope, same as escrow capture never reaching a real seller account) —
-    this just posts a debit entry so the balance and history reflect it.
-    Returns the new balance.
+def start_withdrawal(user_id: str, amount: float) -> tuple[str, str]:
+    """Start a real Stripe Checkout session for a withdrawal — mode='setup'
+    so it's a genuine stripe.com page (same "leave the app" rhythm as
+    deposit) but collects a payment method rather than charging one, since
+    Stripe Checkout can't pay money *out* without Stripe Connect (out of
+    scope for this FYP). No real bank transfer happens either way; the
+    actual debit is applied in [confirm_withdrawal] once this completes.
+    Returns (session_id, checkout_url).
     """
     if amount <= 0:
         raise ValueError("Withdrawal amount must be positive")
-
-    balance = get_balance(user_id)
-    if amount > balance:
+    if amount > get_balance(user_id):
         raise ValueError("You can't withdraw more than your available balance")
 
-    get_service_client().table("wallet_ledger").insert({
-        "user_id": user_id,
-        "transaction_id": None,
-        "amount": -amount,
-        "type": "withdrawal",
-    }).execute()
-    return balance - amount
+    session = stripe.checkout.Session.create(
+        mode="setup",
+        success_url=f"{_WEB_APP_URL}?wallet_withdraw=success",
+        cancel_url=f"{_WEB_APP_URL}?wallet_withdraw=cancel",
+        metadata={"user_id": user_id, "amount": str(amount), "type": "wallet_withdrawal"},
+    )
+    return session.id, session.url
+
+
+def confirm_withdrawal(session_id: str) -> tuple[bool, float]:
+    """Called when the app returns from Checkout. Idempotent via the unique
+    index on stripe_checkout_session_id. Re-checks the balance at
+    confirmation time (it may have changed since start_withdrawal) — returns
+    (credited, balance), where `credited` is False if the session was never
+    completed or the balance is no longer sufficient.
+    """
+    session = stripe.checkout.Session.retrieve(session_id)
+    user_id = session.metadata.get("user_id")
+    balance = get_balance(user_id)
+
+    if session.status != "complete":
+        return False, balance
+
+    amount = float(session.metadata.get("amount", 0))
+    if amount > balance:
+        return False, balance
+
+    try:
+        get_service_client().table("wallet_ledger").insert({
+            "user_id": user_id,
+            "transaction_id": None,
+            "amount": -amount,
+            "type": "withdrawal",
+            "stripe_checkout_session_id": session_id,
+        }).execute()
+    except Exception:
+        pass  # already debited by an earlier call — still counts as credited
+
+    return True, get_balance(user_id)
 
 
 def start_deposit(user_id: str, amount: float) -> tuple[str, str]:

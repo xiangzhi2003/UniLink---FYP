@@ -13,6 +13,7 @@ import '../../widgets/status_chip.dart';
 import '../chat/chat_detail_screen.dart';
 import '../profile/seller_profile_screen.dart';
 import '../transactions/pending_purchase_screen.dart';
+import 'fullscreen_image_viewer.dart';
 
 /// Full listing view: photo gallery, all details, seller row, and actions
 /// (Buy/Book starts a deal → QR handshake; Message Seller opens a chat).
@@ -51,6 +52,17 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
 
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => PendingPurchaseScreen(listing: listing)),
+    );
+  }
+
+  void _openFullscreen(int index) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FullscreenImageViewer(
+          imageUrls: widget.listing.imageUrls,
+          initialIndex: index,
+        ),
+      ),
     );
   }
 
@@ -172,7 +184,9 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                                     (index) =>
                                         setState(() => _currentPhoto = index),
                                 itemBuilder:
-                                    (context, index) => CachedNetworkImage(
+                                    (context, index) => GestureDetector(
+                                      onTap: () => _openFullscreen(index),
+                                      child: CachedNetworkImage(
                                       imageUrl: listing.imageUrls[index],
                                       fit: BoxFit.cover,
                                       placeholder:
@@ -193,6 +207,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                                               color: scheme.onSurfaceVariant,
                                             ),
                                           ),
+                                    ),
                                     ),
                               ),
                     ),

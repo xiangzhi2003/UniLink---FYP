@@ -176,10 +176,25 @@ class BackendService {
     return WalletSummary.fromJson(json);
   }
 
-  /// Simulated cash-out — no real bank transfer, just posts a debit entry.
-  Future<WalletSummary> withdrawFromWallet(double amount) async {
-    final json = await _post('/wallet/withdraw', {'amount': amount});
-    return WalletSummary.fromJson(json);
+  /// Start a real Stripe Checkout session for a withdrawal (setup mode — no
+  /// real charge, but a genuine stripe.com page, same rhythm as deposit).
+  Future<({String checkoutUrl, String sessionId})> startWalletWithdrawal(double amount) async {
+    final json = await _post('/wallet/withdraw/start', {'amount': amount});
+    return (
+      checkoutUrl: json['checkout_url'] as String,
+      sessionId: json['session_id'] as String,
+    );
+  }
+
+  /// Call after returning from Checkout to apply the withdrawal. `credited`
+  /// is false if the session was never completed or the balance is no
+  /// longer sufficient.
+  Future<({bool credited, WalletSummary summary})> confirmWalletWithdrawal(String sessionId) async {
+    final json = await _post('/wallet/withdraw/confirm', {'session_id': sessionId});
+    return (
+      credited: json['credited'] as bool,
+      summary: WalletSummary.fromJson({'balance': json['balance'], 'history': json['history']}),
+    );
   }
 
   /// Start a Stripe Checkout session to top up the wallet.

@@ -7,7 +7,10 @@ from models.wallet import (
     WalletDepositStartResponse,
     WalletHistoryEntry,
     WalletSummaryResponse,
-    WalletWithdrawRequest,
+    WalletWithdrawConfirmRequest,
+    WalletWithdrawConfirmResponse,
+    WalletWithdrawStartRequest,
+    WalletWithdrawStartResponse,
 )
 from services import wallet_service
 from services.auth import current_user_id
@@ -45,18 +48,26 @@ async def summary(user_id: str = Depends(current_user_id)):
     return WalletSummaryResponse(balance=balance, history=history)
 
 
-@router.post("/withdraw", response_model=WalletSummaryResponse)
-async def withdraw(
-    payload: WalletWithdrawRequest,
+@router.post("/withdraw/start", response_model=WalletWithdrawStartResponse)
+async def withdraw_start(
+    payload: WalletWithdrawStartRequest,
     user_id: str = Depends(current_user_id),
 ):
-    """Simulated cash-out — see wallet_service.withdraw for what this does
-    and doesn't do (no real bank transfer)."""
     try:
-        wallet_service.withdraw(user_id, payload.amount)
+        session_id, url = wallet_service.start_withdrawal(user_id, payload.amount)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return await summary(user_id=user_id)
+    return WalletWithdrawStartResponse(checkout_url=url, session_id=session_id)
+
+
+@router.post("/withdraw/confirm", response_model=WalletWithdrawConfirmResponse)
+async def withdraw_confirm(
+    payload: WalletWithdrawConfirmRequest,
+    user_id: str = Depends(current_user_id),
+):
+    credited, _ = wallet_service.confirm_withdrawal(payload.session_id)
+    s = await summary(user_id=user_id)
+    return WalletWithdrawConfirmResponse(credited=credited, balance=s.balance, history=s.history)
 
 
 @router.post("/deposit/start", response_model=WalletDepositStartResponse)
