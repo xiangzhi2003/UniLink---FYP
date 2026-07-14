@@ -8,24 +8,28 @@ class ListingService {
 
   /// Uploads each picked image to `listing-images/<userId>/<name>` and
   /// returns their public URLs, in order. Reads bytes so the same code path
-  /// works on both mobile and web.
+  /// works on both mobile and web. Uploaded in parallel (was a sequential
+  /// loop — up to 5 images each waiting on its own round-trip made
+  /// publishing feel much slower than it needed to be).
   Future<List<String>> uploadListingImages(String userId, List<XFile> images) async {
-    final urls = <String>[];
     final stamp = DateTime.now().millisecondsSinceEpoch;
 
-    for (var i = 0; i < images.length; i++) {
-      final image = images[i];
-      final ext = image.name.contains('.') ? image.name.split('.').last : 'jpg';
-      final path = '$userId/${stamp}_$i.$ext';
-      final bytes = await image.readAsBytes();
+    final urls = await Future.wait(
+      images.asMap().entries.map((entry) async {
+        final i = entry.key;
+        final image = entry.value;
+        final ext = image.name.contains('.') ? image.name.split('.').last : 'jpg';
+        final path = '$userId/${stamp}_$i.$ext';
+        final bytes = await image.readAsBytes();
 
-      await supabase.storage.from(_bucket).uploadBinary(
-            path,
-            bytes,
-            fileOptions: FileOptions(contentType: image.mimeType ?? 'image/jpeg'),
-          );
-      urls.add(supabase.storage.from(_bucket).getPublicUrl(path));
-    }
+        await supabase.storage.from(_bucket).uploadBinary(
+              path,
+              bytes,
+              fileOptions: FileOptions(contentType: image.mimeType ?? 'image/jpeg'),
+            );
+        return supabase.storage.from(_bucket).getPublicUrl(path);
+      }),
+    );
 
     return urls;
   }

@@ -264,10 +264,9 @@ class _QuickAction extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 9.5, height: 1.15),
           ),
         ],
       ),

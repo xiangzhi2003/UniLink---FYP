@@ -9,6 +9,7 @@ import '../../providers/listing_provider.dart';
 import '../../theme/app_tokens.dart';
 import '../../utils/error_messages.dart';
 import '../../widgets/colored_header.dart';
+import '../marketplace/fullscreen_image_viewer.dart';
 import '../marketplace/listing_detail_screen.dart';
 import '../profile/seller_profile_screen.dart';
 
@@ -546,22 +547,31 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         if (m.imageUrl != null)
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(AppRadius.md),
-                                            child: CachedNetworkImage(
-                                              imageUrl: m.imageUrl!,
-                                              fit: BoxFit.cover,
-                                              width: 220,
-                                              height: 220,
-                                              placeholder: (_, __) => const SizedBox(
-                                                width: 220,
-                                                height: 220,
-                                                child: Center(child: CircularProgressIndicator()),
+                                          GestureDetector(
+                                            onTap: () => Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                builder: (_) => FullscreenImageViewer(
+                                                  imageUrls: [m.imageUrl!],
+                                                ),
                                               ),
-                                              errorWidget: (_, __, ___) => const SizedBox(
+                                            ),
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(AppRadius.md),
+                                              child: CachedNetworkImage(
+                                                imageUrl: m.imageUrl!,
+                                                fit: BoxFit.cover,
                                                 width: 220,
                                                 height: 220,
-                                                child: Icon(Icons.broken_image_outlined),
+                                                placeholder: (_, __) => const SizedBox(
+                                                  width: 220,
+                                                  height: 220,
+                                                  child: Center(child: CircularProgressIndicator()),
+                                                ),
+                                                errorWidget: (_, __, ___) => const SizedBox(
+                                                  width: 220,
+                                                  height: 220,
+                                                  child: Icon(Icons.broken_image_outlined),
+                                                ),
                                               ),
                                             ),
                                           ),
