@@ -97,20 +97,24 @@ async def qr_verify(
     client = get_service_client()
 
     if phase == "pickup":
-        # Sale: pickup is the whole deal -> completed. Rent: now in progress.
+        # Sale: pickup is the whole deal -> completed. Rent: now in progress
+        # (still awaiting return). Either way the item has now changed hands,
+        # so the seller is paid at this point for both deal types -- holding
+        # a rental's payment until return would mean the seller waits the
+        # entire rental period (days, weeks, longer) to get paid, which
+        # doesn't match how real rental payouts work. The return leg still
+        # matters for closing out the deal and the due-date record, just not
+        # for money movement anymore.
         new_status = "completed" if txn["type"] == "sale" else "active"
         client.table("transactions").update(
             {"pickup_scanned_at": now, "status": new_status, "updated_at": now}
         ).eq("id", payload.transaction_id).execute()
-        # For a sale the handover is now complete -> release the held escrow.
-        if txn["type"] == "sale":
-            escrow_service.capture(payload.transaction_id)
+        escrow_service.capture(payload.transaction_id)
         return QrVerifyResponse(status=new_status, phase="pickup", message="Pickup confirmed!")
 
-    # Return leg (rentals only) -> completed. The rental is over, so this is
-    # where the held escrow is released to the seller.
+    # Return leg (rentals only) -> completed. Escrow was already captured at
+    # pickup; this just closes out the deal.
     client.table("transactions").update(
         {"return_scanned_at": now, "status": "completed", "updated_at": now}
     ).eq("id", payload.transaction_id).execute()
-    escrow_service.capture(payload.transaction_id)
     return QrVerifyResponse(status="completed", phase="return", message="Return confirmed!")

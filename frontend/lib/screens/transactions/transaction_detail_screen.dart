@@ -150,8 +150,8 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
         ),
       'held' => (
           'Payment held in escrow',
-          '$amount is held safely. It\'s released to the seller once the '
-              '${deal.type == 'rent' ? 'return' : 'pickup'} is confirmed.',
+          '$amount is held safely. It\'s released to the seller once pickup '
+              'is confirmed.',
           StatusVariant.info,
           Icons.shield_outlined,
         ),
