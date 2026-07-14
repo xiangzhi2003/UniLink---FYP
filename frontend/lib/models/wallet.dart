@@ -1,15 +1,15 @@
 class WalletEntry {
   final String id;
-  final String transactionId;
+  final String? transactionId;
   final double amount;
-  final String type;
+  final String type; // credit | withdrawal | deposit
   final DateTime createdAt;
   final String? listingTitle;
   final String? dealType;
 
   const WalletEntry({
     required this.id,
-    required this.transactionId,
+    this.transactionId,
     required this.amount,
     required this.type,
     required this.createdAt,
@@ -20,7 +20,7 @@ class WalletEntry {
   factory WalletEntry.fromJson(Map<String, dynamic> json) {
     return WalletEntry(
       id: json['id'] as String,
-      transactionId: json['transaction_id'] as String,
+      transactionId: json['transaction_id'] as String?,
       amount: (json['amount'] as num).toDouble(),
       type: json['type'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),

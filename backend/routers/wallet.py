@@ -1,6 +1,14 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
-from models.wallet import WalletHistoryEntry, WalletSummaryResponse
+from models.wallet import (
+    WalletDepositConfirmRequest,
+    WalletDepositStartRequest,
+    WalletDepositStartResponse,
+    WalletHistoryEntry,
+    WalletSummaryResponse,
+    WalletWithdrawRequest,
+)
+from services import wallet_service
 from services.auth import current_user_id
 from services.supabase_client import get_service_client
 
@@ -34,3 +42,38 @@ async def summary(user_id: str = Depends(current_user_id)):
     ]
     balance = sum(row.amount for row in history)
     return WalletSummaryResponse(balance=balance, history=history)
+
+
+@router.post("/withdraw", response_model=WalletSummaryResponse)
+async def withdraw(
+    payload: WalletWithdrawRequest,
+    user_id: str = Depends(current_user_id),
+):
+    """Simulated cash-out — see wallet_service.withdraw for what this does
+    and doesn't do (no real bank transfer)."""
+    try:
+        wallet_service.withdraw(user_id, payload.amount)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return await summary(user_id=user_id)
+
+
+@router.post("/deposit/start", response_model=WalletDepositStartResponse)
+async def deposit_start(
+    payload: WalletDepositStartRequest,
+    user_id: str = Depends(current_user_id),
+):
+    try:
+        session_id, url = wallet_service.start_deposit(user_id, payload.amount)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return WalletDepositStartResponse(checkout_url=url, session_id=session_id)
+
+
+@router.post("/deposit/confirm", response_model=WalletSummaryResponse)
+async def deposit_confirm(
+    payload: WalletDepositConfirmRequest,
+    user_id: str = Depends(current_user_id),
+):
+    wallet_service.confirm_deposit(payload.session_id)
+    return await summary(user_id=user_id)
