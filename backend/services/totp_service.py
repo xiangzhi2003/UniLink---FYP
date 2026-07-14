@@ -25,7 +25,10 @@ def ensure_secret(transaction_id: str) -> str:
         .maybe_single()
         .execute()
     )
-    if existing.data:
+    # `.maybe_single().execute()` returns `None` outright (not a response
+    # object with `.data=None`) when zero rows match — the first QR request
+    # for any transaction always hits this.
+    if existing and existing.data:
         return existing.data["totp_secret"]
 
     secret = pyotp.random_base32()

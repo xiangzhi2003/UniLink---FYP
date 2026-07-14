@@ -128,7 +128,10 @@ def confirm_and_create(
         .maybe_single()
         .execute()
     )
-    if existing.data:
+    # This client version returns `None` outright (not a response object
+    # with `.data=None`) when `.maybe_single()` matches zero rows — the
+    # first-ever call for a new session_id always hits this.
+    if existing and existing.data:
         return existing.data["id"], existing.data["escrow_status"]
 
     session = stripe.checkout.Session.retrieve(session_id)

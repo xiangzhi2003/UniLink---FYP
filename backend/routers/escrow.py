@@ -27,7 +27,9 @@ def _load_transaction(transaction_id: str) -> dict:
         .maybe_single()
         .execute()
     )
-    if not row.data:
+    # `.maybe_single().execute()` returns `None` outright (not a response
+    # object with `.data=None`) when the id doesn't match any row.
+    if not row or not row.data:
         raise HTTPException(status_code=404, detail="Transaction not found")
     return row.data
 

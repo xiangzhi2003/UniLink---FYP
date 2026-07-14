@@ -23,7 +23,9 @@ def _owned_listing(listing_id: str, user_id: str) -> dict:
         .maybe_single()
         .execute()
     )
-    if not row.data:
+    # `.maybe_single().execute()` returns `None` outright (not a response
+    # object with `.data=None`) when the id doesn't match any row.
+    if not row or not row.data:
         raise HTTPException(status_code=404, detail="Listing not found")
     if row.data["seller_id"] != user_id:
         raise HTTPException(status_code=403, detail="Not your listing")
