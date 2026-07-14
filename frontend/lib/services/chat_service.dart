@@ -241,16 +241,28 @@ class ChatService {
   }
 
   /// Total unread messages addressed to me across all conversations — powers
-  /// the nav badge.
+  /// the nav badge. Explicitly scoped to my own conversations (same
+  /// `.or(buyer_id.eq...,seller_id.eq...)` pattern as [fetchConversations])
+  /// rather than trusting an embed + RLS alone, since that combination was
+  /// silently returning nothing (embed relationship not resolving as
+  /// expected) despite unread messages genuinely existing.
   Future<int> unreadCount() async {
     final myId = _myId;
+    final convoRows = await supabase
+        .from('conversations')
+        .select('id')
+        .or('buyer_id.eq.$myId,seller_id.eq.$myId');
+    final convoIds = (convoRows as List<dynamic>)
+        .map((row) => (row as Map<String, dynamic>)['id'] as String)
+        .toList();
+    if (convoIds.isEmpty) return 0;
+
     final rows = await supabase
         .from('messages')
-        .select('id, sender_id, is_read, conversations!inner(buyer_id, seller_id)')
+        .select('id')
+        .inFilter('conversation_id', convoIds)
         .eq('is_read', false)
         .neq('sender_id', myId);
-    // RLS already limits this to my conversations, so every row here is one I
-    // can see and didn't send.
     return (rows as List<dynamic>).length;
   }
 

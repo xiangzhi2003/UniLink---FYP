@@ -33,5 +33,16 @@ String friendlyErrorMessage(Object error) {
     // Same reasoning — don't leak raw Postgres/Postgrest error text.
   }
 
+  // backend_service.dart's `_post`/`_get` throw a plain `Exception(detail)`
+  // carrying the FastAPI error's own `detail` text (e.g. "Insufficient
+  // wallet balance", or a validation message) — that's already meant to be
+  // shown to the user, not raw internals, so surface it instead of falling
+  // through to the generic message and hiding what actually happened.
+  if (error is Exception) {
+    final text = error.toString();
+    const prefix = 'Exception: ';
+    if (text.startsWith(prefix)) return text.substring(prefix.length);
+  }
+
   return 'Something went wrong. Please try again.';
 }

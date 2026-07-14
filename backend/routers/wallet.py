@@ -1,3 +1,5 @@
+import traceback
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from models.wallet import (
@@ -57,6 +59,11 @@ async def withdraw_start(
         session_id, url = wallet_service.start_withdrawal(user_id, payload.amount)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        # TODO(debug): temporary — surfaces the real traceback so the
+        # "something went wrong" withdrawal bug can be found. Remove once
+        # withdraw is confirmed working end to end.
+        raise HTTPException(status_code=500, detail=traceback.format_exc())
     return WalletWithdrawStartResponse(checkout_url=url, session_id=session_id)
 
 
@@ -65,8 +72,12 @@ async def withdraw_confirm(
     payload: WalletWithdrawConfirmRequest,
     user_id: str = Depends(current_user_id),
 ):
-    credited, _ = wallet_service.confirm_withdrawal(payload.session_id)
-    s = await summary(user_id=user_id)
+    try:
+        credited, _ = wallet_service.confirm_withdrawal(payload.session_id)
+        s = await summary(user_id=user_id)
+    except Exception:
+        # TODO(debug): temporary — see note in withdraw_start above.
+        raise HTTPException(status_code=500, detail=traceback.format_exc())
     return WalletWithdrawConfirmResponse(credited=credited, balance=s.balance, history=s.history)
 
 

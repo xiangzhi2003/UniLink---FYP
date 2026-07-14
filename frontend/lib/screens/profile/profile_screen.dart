@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../providers/transaction_provider.dart';
 import '../../theme/app_tokens.dart';
 import '../../utils/error_messages.dart';
 import '../../widgets/app_button.dart';
@@ -64,6 +65,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final themeMode = ref.watch(themeModeProvider);
     final scheme = Theme.of(context).colorScheme;
     final unreadNotifications = ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
+    final heldDeals = ref.watch(heldDealsCountProvider).valueOrNull ?? 0;
 
     return SingleChildScrollView(
       child: Column(
@@ -139,7 +141,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       child: _QuickAction(
                         icon: Icons.handshake_outlined,
                         label: 'My Deals',
-                        badgeCount: unreadNotifications,
+                        badgeCount: heldDeals,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const TransactionsListScreen()),
                         ),
