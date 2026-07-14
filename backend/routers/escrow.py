@@ -1,5 +1,3 @@
-import traceback
-
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from models.escrow import (
@@ -63,15 +61,9 @@ async def confirm_and_create(
     /start. Creates the transaction for the first time, but only if payment
     is confirmed held — otherwise returns a null transaction_id so the app
     knows to keep waiting. Idempotent."""
-    try:
-        transaction_id, escrow_status = escrow_service.confirm_and_create(
-            payload.session_id, payload.listing_id, payload.seller_id, user_id, payload.type
-        )
-    except Exception:
-        # TODO(debug): temporary — surfaces the real traceback instead of a
-        # generic plain-text 500, so the actual bug can be found. Remove once
-        # confirm-and-create is confirmed working end to end.
-        raise HTTPException(status_code=500, detail=traceback.format_exc())
+    transaction_id, escrow_status = escrow_service.confirm_and_create(
+        payload.session_id, payload.listing_id, payload.seller_id, user_id, payload.type
+    )
     return EscrowConfirmCreateResponse(
         transaction_id=transaction_id, escrow_status=escrow_status
     )
