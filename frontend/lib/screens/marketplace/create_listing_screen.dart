@@ -164,14 +164,38 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
 
     // pickMultiImage's `limit` isn't enforced on all platforms (notably
     // web), so trim here as well.
-    final accepted = picked.take(remaining).toList();
-    final previews = await Future.wait(accepted.map((f) => f.readAsBytes()));
+    final candidates = picked.take(remaining).toList();
+
+    // Some Android photo sources (camera roll / screenshots album, notably)
+    // occasionally hand back an XFile whose bytes fail to read or come back
+    // empty after image_picker's native compression step — that showed up
+    // as a picked photo rendering blank. Read each one defensively instead
+    // of letting one bad read (via Future.wait) blank out or drop the whole
+    // batch silently.
+    final accepted = <XFile>[];
+    final previews = <Uint8List>[];
+    var failedCount = 0;
+    for (final file in candidates) {
+      try {
+        final bytes = await file.readAsBytes();
+        if (bytes.isEmpty) {
+          failedCount++;
+          continue;
+        }
+        accepted.add(file);
+        previews.add(bytes);
+      } catch (_) {
+        failedCount++;
+      }
+    }
 
     if (!mounted) return;
     setState(() {
       _newImages.addAll(accepted);
       _newImagePreviews.addAll(previews);
-      _photoError = null;
+      _photoError = failedCount > 0
+          ? "$failedCount photo${failedCount == 1 ? '' : 's'} couldn't be loaded — try picking ${failedCount == 1 ? 'it' : 'them'} again."
+          : null;
     });
   }
 

@@ -33,6 +33,13 @@ String friendlyErrorMessage(Object error) {
     // Same reasoning — don't leak raw Postgres/Postgrest error text.
   }
 
+  if (error is StorageException) {
+    // Storage errors (e.g. an upload rejected by a bucket's RLS policy) are
+    // usually specific enough to be actionable, unlike raw Postgrest/Auth
+    // internals — surface the message instead of a generic fallback.
+    return error.message;
+  }
+
   // backend_service.dart's `_post`/`_get` throw a plain `Exception(detail)`
   // carrying the FastAPI error's own `detail` text (e.g. "Insufficient
   // wallet balance", or a validation message) — that's already meant to be

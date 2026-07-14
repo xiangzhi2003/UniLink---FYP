@@ -153,10 +153,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       await ref
           .read(chatServiceProvider)
           .sendMessage(conversationId, caption, imageUrl: imageUrl);
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not send image. Try again.')),
+          SnackBar(content: Text(friendlyErrorMessage(e))),
         );
       }
     } finally {

@@ -9,7 +9,11 @@ class ChatService {
   // embed is ambiguous to PostgREST and errors on every fetch.
   static const _convoSelect =
       '*, listings!listing_id(title), buyer:profiles!buyer_id(full_name), seller:profiles!seller_id(full_name)';
-  static const _imageBucket = 'listing-images';
+  // Its own bucket, not `listing-images` — that bucket's storage policies
+  // are scoped to listing owners uploading under a `listingId/...` path, so
+  // a chat upload path (`conversationId/...`) fails the ownership check and
+  // errors out. Chat images need their own bucket/policies instead.
+  static const _imageBucket = 'chat-images';
 
   String get _myId => supabase.auth.currentSession!.user.id;
 
