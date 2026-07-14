@@ -81,7 +81,11 @@ class _PendingPurchaseScreenState extends ConsumerState<PendingPurchaseScreen> {
         setState(() => _error = "Payment not detected yet — finish paying, then check again.");
       }
     } catch (e) {
-      if (mounted) setState(() => _error = friendlyErrorMessage(e));
+      // TODO(debug): temporary — shows the raw error so we can see exactly
+      // why confirm-and-create failed, instead of the generic friendly
+      // message hiding it. Remove once the real cause is fixed.
+      debugPrint('confirmAndCreateEscrow failed: $e');
+      if (mounted) setState(() => _error = '${friendlyErrorMessage(e)}\n\n[debug] $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }

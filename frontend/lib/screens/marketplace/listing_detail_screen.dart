@@ -4,6 +4,7 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/listing.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/chat_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/app_tokens.dart';
 import '../../widgets/app_button.dart';
@@ -66,8 +67,9 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
     await Clipboard.setData(
       ClipboardData(text: '${listing.title} — $priceText\n\nvia UniLink'),
     );
-    if (mounted)
+    if (mounted) {
       _comingSoonSnack('Listing details copied — paste it anywhere to share.');
+    }
   }
 
   /// "today" / "N days ago" / "N weeks ago" / "N months ago" — no package
@@ -78,15 +80,19 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
     if (diff.inDays <= 0) return 'Posted today';
     if (diff.inDays == 1) return 'Posted yesterday';
     if (diff.inDays < 7) return 'Posted ${diff.inDays} days ago';
-    if (diff.inDays < 30)
+    if (diff.inDays < 30) {
       return 'Posted ${(diff.inDays / 7).floor()} weeks ago';
+    }
     return 'Posted ${(diff.inDays / 30).floor()} months ago';
   }
 
-  /// No conversation row is created here — [ChatDetailScreen] only creates
-  /// one on the first message actually sent, so opening this and backing out
-  /// without typing anything no longer leaves an empty "New chat" behind.
-  void _messageSeller() {
+  /// One conversation per seller (not per listing, Carousell/Shopee-style):
+  /// finds or creates the thread with this seller, sends a "you're asking
+  /// about this" product card as a real message (Shopee-style — skipped if
+  /// the most recent message already points at the same listing, so
+  /// re-opening the same product's chat doesn't spam duplicate cards), then
+  /// opens straight into the full existing history.
+  Future<void> _messageSeller() async {
     final listing = widget.listing;
     final myId = ref.read(authServiceProvider).currentUser?.id;
     if (myId == listing.sellerId) {
@@ -94,12 +100,20 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
       return;
     }
 
+    final chatService = ref.read(chatServiceProvider);
+    final conversationId = await chatService.getOrCreateConversation(
+      sellerId: listing.sellerId,
+      listingId: listing.id,
+    );
+    await chatService.sendProductCard(conversationId, listing.id!);
+    if (!mounted) return;
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ChatDetailScreen(
-          listingId: listing.id!,
-          sellerId: listing.sellerId,
+          conversationId: conversationId,
           title: listing.sellerName ?? 'Seller',
+          otherUserId: listing.sellerId,
         ),
       ),
     );

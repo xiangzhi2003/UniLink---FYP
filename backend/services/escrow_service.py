@@ -153,11 +153,9 @@ def confirm_and_create(
                 "stripe_payment_intent_id": pi_id,
             }
         )
-        .select("id")
-        .single()
         .execute()
     )
-    return row.data["id"], "held"
+    return row.data[0]["id"], "held"
 
 
 def confirm_payment(transaction_id: str) -> str:

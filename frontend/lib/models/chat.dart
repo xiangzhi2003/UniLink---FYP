@@ -12,6 +12,11 @@ class Conversation {
   final DateTime? lastMessageAt;
   final int unreadCount;
 
+  /// The most recently discussed listing's title (the newest product card,
+  /// not necessarily [listingTitle] which is just the one that started the
+  /// conversation) — shown as the "re: ..." subtitle in the chat list.
+  final String? recentListingTitle;
+
   const Conversation({
     required this.id,
     this.listingId,
@@ -23,6 +28,7 @@ class Conversation {
     this.lastMessage,
     this.lastMessageAt,
     this.unreadCount = 0,
+    this.recentListingTitle,
   });
 
   String otherPartyName(String myId) {
@@ -35,6 +41,7 @@ class Conversation {
     String? lastMessage,
     DateTime? lastMessageAt,
     int unreadCount = 0,
+    String? recentListingTitle,
   }) {
     final listing = json['listings'] as Map<String, dynamic>?;
     final buyer = json['buyer'] as Map<String, dynamic>?;
@@ -50,6 +57,7 @@ class Conversation {
       lastMessage: lastMessage,
       lastMessageAt: lastMessageAt,
       unreadCount: unreadCount,
+      recentListingTitle: recentListingTitle,
     );
   }
 }
@@ -61,6 +69,16 @@ class Message {
   final String content;
   final bool isRead;
   final DateTime createdAt;
+  final bool isDeleted;
+  final String? imageUrl;
+
+  /// Set when this message is a "you're asking about this" product card
+  /// (auto-sent when opening a chat from a listing) rather than an ordinary
+  /// text/image message. The card's title/price/photo are fetched
+  /// separately (`ChatService.fetchListingSummary`) when rendering it.
+  final String? listingId;
+
+  bool get isProductCard => listingId != null;
 
   const Message({
     required this.id,
@@ -69,6 +87,9 @@ class Message {
     required this.content,
     required this.isRead,
     required this.createdAt,
+    this.isDeleted = false,
+    this.imageUrl,
+    this.listingId,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -79,6 +100,9 @@ class Message {
       content: json['content'] as String,
       isRead: json['is_read'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
+      isDeleted: json['is_deleted'] as bool? ?? false,
+      imageUrl: json['image_url'] as String?,
+      listingId: json['listing_id'] as String?,
     );
   }
 }

@@ -497,8 +497,9 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                 hintText: isRent ? '0.00 per day' : '0.00',
               ),
               validator: (value) {
-                if (value == null || value.trim().isEmpty)
+                if (value == null || value.trim().isEmpty) {
                   return 'Enter a price';
+                }
                 final price = double.tryParse(value.trim());
                 if (price == null || price < 0) return 'Enter a valid price';
                 return null;

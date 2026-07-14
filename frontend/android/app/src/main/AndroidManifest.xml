@@ -24,6 +24,15 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- Impeller (the default Android renderer) has a known bug on
+                 some GPUs (incl. this device) where text glyphs render as
+                 garbage after the app's surface is destroyed and recreated —
+                 exactly what happens when an external browser (Stripe
+                 Checkout) opens on top and the app is later resumed. Skia is
+                 the older, more stable renderer and doesn't have this bug. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.EnableImpeller"
+              android:value="false" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
