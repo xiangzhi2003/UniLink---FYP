@@ -39,6 +39,7 @@ def start_withdrawal(user_id: str, amount: float) -> tuple[str, str]:
 
     session = stripe.checkout.Session.create(
         mode="setup",
+        payment_method_types=["card"],
         success_url=f"{_WEB_APP_URL}?wallet_withdraw=success",
         cancel_url=f"{_WEB_APP_URL}?wallet_withdraw=cancel",
         metadata={"user_id": user_id, "amount": str(amount), "type": "wallet_withdrawal"},
