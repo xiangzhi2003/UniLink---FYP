@@ -103,6 +103,23 @@ class BackendService {
     );
   }
 
+  /// Pay for a listing straight from the wallet balance — no Stripe redirect,
+  /// the deal is created already held. Throws if the balance is insufficient.
+  Future<String> payWithWallet({
+    required String listingId,
+    required String sellerId,
+    required String type,
+    int? rentalDays,
+  }) async {
+    final json = await _post('/escrow/pay-with-wallet', {
+      'listing_id': listingId,
+      'seller_id': sellerId,
+      'type': type,
+      if (rentalDays != null) 'rental_days': rentalDays,
+    });
+    return json['transaction_id'] as String;
+  }
+
   /// Call after returning from Checkout for a deal started via
   /// [startEscrowCheckout] — creates the deal for the first time, but only
   /// once payment is confirmed held. `transactionId` is null while still
@@ -174,9 +191,14 @@ class BackendService {
     );
   }
 
-  /// Call after returning from Checkout to credit the deposit.
-  Future<WalletSummary> confirmWalletDeposit(String sessionId) async {
+  /// Call after returning from Checkout to credit the deposit. `credited` is
+  /// false if the payment was never actually completed (e.g. backed out of
+  /// Checkout) — the balance/history are returned either way for display.
+  Future<({bool credited, WalletSummary summary})> confirmWalletDeposit(String sessionId) async {
     final json = await _post('/wallet/deposit/confirm', {'session_id': sessionId});
-    return WalletSummary.fromJson(json);
+    return (
+      credited: json['credited'] as bool,
+      summary: WalletSummary.fromJson({'balance': json['balance'], 'history': json['history']}),
+    );
   }
 }

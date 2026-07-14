@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from models.wallet import (
     WalletDepositConfirmRequest,
+    WalletDepositConfirmResponse,
     WalletDepositStartRequest,
     WalletDepositStartResponse,
     WalletHistoryEntry,
@@ -70,10 +71,11 @@ async def deposit_start(
     return WalletDepositStartResponse(checkout_url=url, session_id=session_id)
 
 
-@router.post("/deposit/confirm", response_model=WalletSummaryResponse)
+@router.post("/deposit/confirm", response_model=WalletDepositConfirmResponse)
 async def deposit_confirm(
     payload: WalletDepositConfirmRequest,
     user_id: str = Depends(current_user_id),
 ):
-    wallet_service.confirm_deposit(payload.session_id)
-    return await summary(user_id=user_id)
+    credited, _ = wallet_service.confirm_deposit(payload.session_id)
+    s = await summary(user_id=user_id)
+    return WalletDepositConfirmResponse(credited=credited, balance=s.balance, history=s.history)

@@ -8,6 +8,7 @@ from models.escrow import (
     EscrowStartResponse,
     EscrowStatusResponse,
     EscrowTransactionRequest,
+    EscrowWalletPayRequest,
 )
 from services import escrow_service
 from services.auth import current_user_id
@@ -67,6 +68,25 @@ async def confirm_and_create(
     return EscrowConfirmCreateResponse(
         transaction_id=transaction_id, escrow_status=escrow_status
     )
+
+
+@router.post("/pay-with-wallet", response_model=EscrowConfirmCreateResponse)
+async def pay_with_wallet(
+    payload: EscrowWalletPayRequest,
+    user_id: str = Depends(current_user_id),
+):
+    """Pay for a listing straight from the buyer's wallet balance — no
+    Stripe redirect, the deal is created already held in one call."""
+    if user_id == payload.seller_id:
+        raise HTTPException(status_code=400, detail="You can't buy your own listing")
+
+    try:
+        transaction_id = escrow_service.pay_with_wallet(
+            payload.listing_id, payload.seller_id, user_id, payload.type, payload.rental_days
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return EscrowConfirmCreateResponse(transaction_id=transaction_id, escrow_status="held")
 
 
 @router.post("/create", response_model=EscrowCheckoutResponse)

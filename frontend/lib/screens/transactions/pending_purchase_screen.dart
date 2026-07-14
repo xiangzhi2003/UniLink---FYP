@@ -6,9 +6,12 @@ import '../../providers/transaction_provider.dart';
 import '../../theme/app_tokens.dart';
 import '../../utils/error_messages.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_card.dart';
 import '../../widgets/status_banner.dart';
 import '../../widgets/status_chip.dart';
 import 'transaction_detail_screen.dart';
+
+enum _PaymentMethod { stripe, wallet }
 
 /// Shown after tapping Buy/Book, before any deal exists — no transaction row
 /// is written until payment is actually confirmed held. If the buyer pays,
@@ -28,9 +31,22 @@ class _PendingPurchaseScreenState extends ConsumerState<PendingPurchaseScreen> {
   bool _busy = false;
   String? _error;
   int _rentalDays = 1;
+  _PaymentMethod _method = _PaymentMethod.stripe;
+  double? _walletBalance;
 
   bool get _isRent => widget.listing.listingType == 'rent';
   double get _total => widget.listing.price * (_isRent ? _rentalDays : 1);
+  bool get _walletInsufficient => _walletBalance != null && _walletBalance! < _total;
+
+  @override
+  void initState() {
+    super.initState();
+    ref.read(backendServiceProvider).fetchWalletSummary().then((s) {
+      if (mounted) setState(() => _walletBalance = s.balance);
+    }).catchError((_) {
+      // Balance just won't be shown/selectable — Stripe remains available.
+    });
+  }
 
   Future<void> _pay() async {
     setState(() {
@@ -92,11 +108,48 @@ class _PendingPurchaseScreenState extends ConsumerState<PendingPurchaseScreen> {
     }
   }
 
+  Future<void> _payWithWallet() async {
+    if (_walletInsufficient) {
+      setState(() => _error = 'Insufficient wallet balance.');
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final transactionId = await ref.read(backendServiceProvider).payWithWallet(
+            listingId: widget.listing.id!,
+            sellerId: widget.listing.sellerId,
+            type: widget.listing.listingType,
+            rentalDays: _isRent ? _rentalDays : null,
+          );
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => TransactionDetailScreen(dealId: transactionId)),
+        );
+      }
+    } catch (e) {
+      final message = friendlyErrorMessage(e);
+      if (mounted) {
+        setState(() {
+          _error = message.toLowerCase().contains('insufficient')
+              ? 'Insufficient wallet balance.'
+              : message;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final listing = widget.listing;
     final isRent = listing.listingType == 'rent';
     final scheme = Theme.of(context).colorScheme;
+    final choosingPaymentMethod = _sessionId == null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Complete Purchase')),
@@ -147,16 +200,49 @@ class _PendingPurchaseScreenState extends ConsumerState<PendingPurchaseScreen> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
+              if (choosingPaymentMethod) ...[
+                const SizedBox(height: AppSpacing.xl),
+                Text('Pay with', style: Theme.of(context).textTheme.labelLarge),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _PaymentMethodTile(
+                        icon: Icons.credit_card,
+                        label: 'Card',
+                        subtitle: 'via Stripe',
+                        selected: _method == _PaymentMethod.stripe,
+                        onTap: () => setState(() => _method = _PaymentMethod.stripe),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: _PaymentMethodTile(
+                        icon: Icons.account_balance_wallet_outlined,
+                        label: 'Wallet',
+                        subtitle: _walletBalance == null
+                            ? 'Loading...'
+                            : 'RM ${_walletBalance!.toStringAsFixed(2)}',
+                        selected: _method == _PaymentMethod.wallet,
+                        onTap: () => setState(() => _method = _PaymentMethod.wallet),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: AppSpacing.xl),
               StatusBanner(
                 icon: Icons.lock_clock_outlined,
                 title: 'Nothing is created until you pay',
-                detail: _sessionId == null
-                    ? 'Tap Pay to open secure Stripe checkout. Your payment is held '
-                        'in escrow and only released to the seller once you confirm '
-                        'the handover — nothing is booked here unless you complete payment.'
-                    : "Finished paying in the browser? Tap \"I've paid\" to continue. "
-                        'If you back out now without paying, nothing will be created.',
+                detail: !choosingPaymentMethod
+                    ? "Finished paying in the browser? Tap \"I've paid\" to continue. "
+                        'If you back out now without paying, nothing will be created.'
+                    : _method == _PaymentMethod.wallet
+                        ? 'Your wallet balance is debited immediately and the deal is held in '
+                            'escrow, released to the seller once you confirm the handover.'
+                        : 'Tap Pay to open secure Stripe checkout. Your payment is held '
+                            'in escrow and only released to the seller once you confirm '
+                            'the handover — nothing is booked here unless you complete payment.',
                 variant: StatusVariant.warning,
               ),
               if (_error != null) ...[
@@ -164,14 +250,20 @@ class _PendingPurchaseScreenState extends ConsumerState<PendingPurchaseScreen> {
                 Text(_error!, style: TextStyle(color: scheme.error)),
               ],
               const SizedBox(height: AppSpacing.xxl),
-              if (_sessionId == null)
+              if (choosingPaymentMethod)
                 SizedBox(
                   width: double.infinity,
                   child: PrimaryButton(
-                    label: 'Pay RM ${_total.toStringAsFixed(2)}',
-                    icon: Icons.credit_card,
+                    label: _method == _PaymentMethod.wallet
+                        ? 'Pay RM ${_total.toStringAsFixed(2)} with Wallet'
+                        : 'Pay RM ${_total.toStringAsFixed(2)}',
+                    icon: _method == _PaymentMethod.wallet
+                        ? Icons.account_balance_wallet_outlined
+                        : Icons.credit_card,
                     isLoading: _busy,
-                    onPressed: _busy ? null : _pay,
+                    onPressed: _busy || (_method == _PaymentMethod.wallet && _walletInsufficient)
+                        ? null
+                        : (_method == _PaymentMethod.wallet ? _payWithWallet : _pay),
                   ),
                 )
               else ...[
@@ -197,6 +289,50 @@ class _PendingPurchaseScreenState extends ConsumerState<PendingPurchaseScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PaymentMethodTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _PaymentMethodTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
+      onTap: onTap,
+      color: selected ? scheme.primary.withValues(alpha: 0.08) : null,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
+      child: Column(
+        children: [
+          Icon(icon, color: selected ? scheme.primary : scheme.onSurfaceVariant),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: selected ? scheme.primary : null,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+          ),
+        ],
       ),
     );
   }

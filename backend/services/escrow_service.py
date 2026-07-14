@@ -3,6 +3,7 @@ from datetime import date, timedelta
 
 import stripe
 
+from services import wallet_service
 from services.supabase_client import get_service_client
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
@@ -229,18 +230,81 @@ def confirm_payment(transaction_id: str) -> str:
     return txn["escrow_status"]
 
 
+def pay_with_wallet(
+    listing_id: str,
+    seller_id: str,
+    buyer_id: str,
+    deal_type: str,
+    rental_days: int | None = None,
+) -> str:
+    """Pay for a listing straight from the buyer's simulated wallet balance
+    instead of Stripe Checkout. Unlike the Stripe flow there's no async
+    "did they actually pay" step to wait for, so the transaction is created
+    already held in one call. Raises ValueError if the balance is insufficient
+    or (for rentals) if rental_days is missing.
+    """
+    if deal_type == "rent" and (rental_days is None or rental_days < 1):
+        raise ValueError("rental_days must be a positive integer for rent deals")
+
+    client = get_service_client()
+    listing_price = float(
+        client.table("listings").select("price").eq("id", listing_id).single().execute().data["price"]
+    )
+
+    rental_start_date = rental_due_date = None
+    if deal_type == "rent":
+        amount = listing_price * rental_days
+        rental_start_date = date.today()
+        rental_due_date = rental_start_date + timedelta(days=rental_days)
+    else:
+        amount = listing_price
+        rental_days = None
+
+    # Not perfectly race-safe against two concurrent wallet payments from the
+    # same buyer, but acceptable for this FYP's single-user testing scope.
+    if amount > wallet_service.get_balance(buyer_id):
+        raise ValueError("Insufficient wallet balance")
+
+    row = client.table("transactions").insert({
+        "listing_id": listing_id,
+        "buyer_id": buyer_id,
+        "seller_id": seller_id,
+        "type": deal_type,
+        "escrow_status": "held",
+        "amount": amount,
+        "rental_days": rental_days,
+        "rental_start_date": rental_start_date.isoformat() if rental_start_date else None,
+        "rental_due_date": rental_due_date.isoformat() if rental_due_date else None,
+    }).execute()
+    transaction_id = row.data[0]["id"]
+
+    client.table("wallet_ledger").insert({
+        "user_id": buyer_id,
+        "transaction_id": transaction_id,
+        "amount": -amount,
+        "type": "wallet_payment",
+    }).execute()
+
+    return transaction_id
+
+
 def capture(transaction_id: str) -> None:
     """Release the held funds to the platform (the handover is confirmed).
 
     (In a full Stripe Connect setup this is where a transfer to the seller's
     connected account would happen; for this test-mode FYP we capture to the
-    platform account and treat that as "released to seller".)
+    platform account and treat that as "released to seller". Wallet-funded
+    deals have no Stripe PaymentIntent to capture — the buyer's side was
+    already debited at payment time — so this only credits the seller.)
     """
     txn = _load_transaction(transaction_id)
-    pi_id = txn.get("stripe_payment_intent_id")
-    if txn["escrow_status"] != "held" or not pi_id:
+    if txn["escrow_status"] != "held":
         return
-    stripe.PaymentIntent.capture(pi_id)
+
+    pi_id = txn.get("stripe_payment_intent_id")
+    if pi_id:
+        stripe.PaymentIntent.capture(pi_id)
+
     client = get_service_client()
     client.table("transactions").update(
         {"escrow_status": "captured"}
@@ -248,7 +312,7 @@ def capture(transaction_id: str) -> None:
 
     # Credit the seller's simulated wallet for the captured amount. Wrapped
     # so a duplicate call (capture() is otherwise idempotent) can't double
-    # credit — the unique index on wallet_ledger.transaction_id rejects it.
+    # credit — the unique index on wallet_ledger(transaction_id, type) rejects it.
     amount = txn.get("amount") or txn["listings"]["price"]
     try:
         client.table("wallet_ledger").insert({
@@ -263,12 +327,29 @@ def capture(transaction_id: str) -> None:
 
 def refund(transaction_id: str) -> None:
     """Release the hold without charging the buyer (deal cancelled before
-    pickup). Cancelling a not-yet-captured PaymentIntent frees the held funds.
+    pickup). Cancelling a not-yet-captured PaymentIntent frees the held funds
+    for Stripe-funded deals; wallet-funded deals get the debited amount
+    credited straight back to the buyer's wallet instead.
     """
     txn = _load_transaction(transaction_id)
-    pi_id = txn.get("stripe_payment_intent_id")
-    if pi_id and txn["escrow_status"] == "held":
-        stripe.PaymentIntent.cancel(pi_id)
-    get_service_client().table("transactions").update(
+    client = get_service_client()
+
+    if txn["escrow_status"] == "held":
+        pi_id = txn.get("stripe_payment_intent_id")
+        if pi_id:
+            stripe.PaymentIntent.cancel(pi_id)
+        else:
+            amount = txn.get("amount") or txn["listings"]["price"]
+            try:
+                client.table("wallet_ledger").insert({
+                    "user_id": txn["buyer_id"],
+                    "transaction_id": transaction_id,
+                    "amount": amount,
+                    "type": "refund",
+                }).execute()
+            except Exception:
+                pass
+
+    client.table("transactions").update(
         {"escrow_status": "refunded", "status": "cancelled"}
     ).eq("id", transaction_id).execute()

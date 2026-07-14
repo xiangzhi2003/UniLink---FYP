@@ -31,3 +31,9 @@ class WalletDepositStartResponse(BaseModel):
 
 class WalletDepositConfirmRequest(BaseModel):
     session_id: str
+
+
+class WalletDepositConfirmResponse(BaseModel):
+    credited: bool  # False if Checkout was never actually completed
+    balance: float
+    history: list[WalletHistoryEntry]

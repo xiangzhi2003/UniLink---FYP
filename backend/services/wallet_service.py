@@ -73,26 +73,30 @@ def start_deposit(user_id: str, amount: float) -> tuple[str, str]:
     return session.id, session.url
 
 
-def confirm_deposit(session_id: str) -> float:
+def confirm_deposit(session_id: str) -> tuple[bool, float]:
     """Called when the app returns from Checkout. Idempotent: a repeat call
     for an already-credited session hits the unique index on
-    stripe_checkout_session_id and is a no-op. Returns the current balance
-    (whether or not this call was the one that credited it).
+    stripe_checkout_session_id and is a no-op. Returns (credited, balance) —
+    `credited` is False if the buyer backed out of Checkout without paying,
+    so the caller can tell the user the deposit isn't in yet instead of
+    falsely reporting success.
     """
     session = stripe.checkout.Session.retrieve(session_id)
     user_id = session.metadata.get("user_id")
 
-    if session.payment_status == "paid":
-        amount = float(session.metadata.get("amount", 0))
-        try:
-            get_service_client().table("wallet_ledger").insert({
-                "user_id": user_id,
-                "transaction_id": None,
-                "amount": amount,
-                "type": "deposit",
-                "stripe_checkout_session_id": session_id,
-            }).execute()
-        except Exception:
-            pass  # already credited by an earlier call
+    if session.payment_status != "paid":
+        return False, get_balance(user_id)
 
-    return get_balance(user_id)
+    amount = float(session.metadata.get("amount", 0))
+    try:
+        get_service_client().table("wallet_ledger").insert({
+            "user_id": user_id,
+            "transaction_id": None,
+            "amount": amount,
+            "type": "deposit",
+            "stripe_checkout_session_id": session_id,
+        }).execute()
+    except Exception:
+        pass  # already credited by an earlier call — still counts as credited
+
+    return True, get_balance(user_id)
