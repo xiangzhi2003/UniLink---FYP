@@ -107,6 +107,15 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
                     '${iAmSeller ? 'you are selling' : 'you are buying'}',
                     style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
+                  if (deal.type == 'rent' && deal.rentalDays != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Rented from ${_formatDate(deal.rentalStartDate)} · '
+                      'due back ${_formatDate(deal.rentalDueDate)} '
+                      '(${deal.rentalDays} day${deal.rentalDays == 1 ? '' : 's'})',
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.xl),
                   _statusBanner(deal),
                   const SizedBox(height: AppSpacing.lg),
@@ -126,9 +135,8 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
   }
 
   Widget _escrowSection(BuildContext context, TransactionDeal deal, bool iAmBuyer) {
-    final amount = deal.listingPrice == null
-        ? ''
-        : 'RM ${deal.listingPrice!.toStringAsFixed(2)}';
+    final chargedAmount = deal.amount ?? deal.listingPrice;
+    final amount = chargedAmount == null ? '' : 'RM ${chargedAmount.toStringAsFixed(2)}';
 
     final (label, detail, variant, icon) = switch (deal.escrowStatus) {
       'pending' => (
@@ -384,6 +392,11 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
     } catch (e) {
       _snack(friendlyErrorMessage(e));
     }
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return '?';
+    return '${date.day}/${date.month}/${date.year}';
   }
 
   void _snack(String message) {

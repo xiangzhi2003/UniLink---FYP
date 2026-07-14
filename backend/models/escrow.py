@@ -17,6 +17,7 @@ class EscrowStartRequest(BaseModel):
     listing_id: str
     seller_id: str
     type: str  # "sale" | "rent"
+    rental_days: int | None = None  # required when type == "rent"
 
 
 class EscrowStartResponse(BaseModel):

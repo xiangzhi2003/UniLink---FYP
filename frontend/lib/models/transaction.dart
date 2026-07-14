@@ -10,6 +10,10 @@ class TransactionDeal {
   final String escrowStatus; // pending | held | captured | refunded (Sprint 3B)
   final String? checkoutSessionId; // set once the buyer starts Stripe Checkout
   final DateTime createdAt;
+  final double? amount; // RM actually charged, snapshotted at confirm-and-create
+  final int? rentalDays;
+  final DateTime? rentalStartDate;
+  final DateTime? rentalDueDate;
 
   // Joined display fields (not columns on transactions):
   final String? listingTitle;
@@ -35,6 +39,10 @@ class TransactionDeal {
     this.listingImages = const [],
     this.buyerName,
     this.sellerName,
+    this.amount,
+    this.rentalDays,
+    this.rentalStartDate,
+    this.rentalDueDate,
   });
 
   /// Which leg of the handshake is next: 'pickup' until the item changes
@@ -68,6 +76,14 @@ class TransactionDeal {
           : (listing['image_urls'] as List<dynamic>?)?.cast<String>() ?? const [],
       buyerName: buyer?['full_name'] as String?,
       sellerName: seller?['full_name'] as String?,
+      amount: json['amount'] == null ? null : (json['amount'] as num).toDouble(),
+      rentalDays: json['rental_days'] as int?,
+      rentalStartDate: json['rental_start_date'] == null
+          ? null
+          : DateTime.parse(json['rental_start_date'] as String),
+      rentalDueDate: json['rental_due_date'] == null
+          ? null
+          : DateTime.parse(json['rental_due_date'] as String),
     );
   }
 }

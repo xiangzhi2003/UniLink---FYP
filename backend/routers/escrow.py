@@ -45,9 +45,12 @@ async def start(
     if user_id == payload.seller_id:
         raise HTTPException(status_code=400, detail="You can't buy your own listing")
 
-    session_id, url = escrow_service.create_checkout_session_for_listing(
-        payload.listing_id, payload.seller_id, user_id, payload.type
-    )
+    try:
+        session_id, url = escrow_service.create_checkout_session_for_listing(
+            payload.listing_id, payload.seller_id, user_id, payload.type, payload.rental_days
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return EscrowStartResponse(checkout_url=url, session_id=session_id)
 
 

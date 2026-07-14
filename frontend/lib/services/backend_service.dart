@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../config/supabase_config.dart';
+import '../models/wallet.dart';
 
 /// Thin authed client for our FastAPI backend. Every call carries the current
 /// Supabase access token as a Bearer header so the backend can verify who's
@@ -21,6 +22,27 @@ class BackendService {
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode(body),
+    );
+
+    final decoded = response.body.isEmpty ? {} : jsonDecode(response.body);
+    if (response.statusCode >= 400) {
+      final detail = decoded is Map && decoded['detail'] != null
+          ? decoded['detail'].toString()
+          : 'Request failed (${response.statusCode})';
+      throw Exception(detail);
+    }
+    return (decoded as Map).cast<String, dynamic>();
+  }
+
+  Future<Map<String, dynamic>> _get(String path) async {
+    final token = supabase.auth.currentSession?.accessToken;
+    if (token == null) {
+      throw Exception('Not signed in');
+    }
+
+    final response = await http.get(
+      Uri.parse('$backendUrl$path'),
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     final decoded = response.body.isEmpty ? {} : jsonDecode(response.body);
@@ -67,11 +89,13 @@ class BackendService {
     required String listingId,
     required String sellerId,
     required String type,
+    int? rentalDays,
   }) async {
     final json = await _post('/escrow/start', {
       'listing_id': listingId,
       'seller_id': sellerId,
       'type': type,
+      if (rentalDays != null) 'rental_days': rentalDays,
     });
     return (
       checkoutUrl: json['checkout_url'] as String,
@@ -127,5 +151,11 @@ class BackendService {
   Future<List<String>> searchListings(String query) async {
     final json = await _post('/search/query', {'query': query});
     return (json['listing_ids'] as List<dynamic>).cast<String>();
+  }
+
+  /// Simulated wallet balance + earnings history.
+  Future<WalletSummary> fetchWalletSummary() async {
+    final json = await _get('/wallet/summary');
+    return WalletSummary.fromJson(json);
   }
 }

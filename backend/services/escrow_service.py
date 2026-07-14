@@ -1,4 +1,5 @@
 import os
+from datetime import date, timedelta
 
 import stripe
 
@@ -63,14 +64,25 @@ def create_checkout_session(transaction_id: str) -> str:
 
 
 def create_checkout_session_for_listing(
-    listing_id: str, seller_id: str, buyer_id: str, deal_type: str
+    listing_id: str,
+    seller_id: str,
+    buyer_id: str,
+    deal_type: str,
+    rental_days: int | None = None,
 ) -> tuple[str, str]:
     """Same idea as [create_checkout_session], but for a deal that doesn't
     exist yet — Buy/Book no longer writes a transaction row up front, so
     price/title come straight from the listing instead of via a transaction
     join. Returns (session_id, checkout_url); the transaction row is only
     created later, in [confirm_and_create], once payment is actually held.
+
+    For rentals, `rental_days` is the buyer-selected duration; the listing's
+    price is treated as the per-day rate and charged as `quantity=rental_days`
+    so Stripe's own Checkout page shows the day count and multiplied total.
     """
+    if deal_type == "rent" and (rental_days is None or rental_days < 1):
+        raise ValueError("rental_days must be a positive integer for rent deals")
+
     client = get_service_client()
     listing = (
         client.table("listings")
@@ -80,7 +92,17 @@ def create_checkout_session_for_listing(
         .execute()
         .data
     )
-    amount = int(round(float(listing["price"]) * 100))
+    unit_amount = int(round(float(listing["price"]) * 100))
+    quantity = rental_days if deal_type == "rent" else 1
+
+    metadata = {
+        "listing_id": listing_id,
+        "seller_id": seller_id,
+        "buyer_id": buyer_id,
+        "type": deal_type,
+    }
+    if deal_type == "rent":
+        metadata["rental_days"] = str(rental_days)
 
     session = stripe.checkout.Session.create(
         mode="payment",
@@ -89,20 +111,15 @@ def create_checkout_session_for_listing(
                 "price_data": {
                     "currency": "myr",
                     "product_data": {"name": listing["title"]},
-                    "unit_amount": amount,
+                    "unit_amount": unit_amount,
                 },
-                "quantity": 1,
+                "quantity": quantity,
             }
         ],
         payment_intent_data={"capture_method": "manual"},
         success_url=f"{_WEB_APP_URL}?escrow=success",
         cancel_url=f"{_WEB_APP_URL}?escrow=cancel",
-        metadata={
-            "listing_id": listing_id,
-            "seller_id": seller_id,
-            "buyer_id": buyer_id,
-            "type": deal_type,
-        },
+        metadata=metadata,
     )
     return session.id, session.url
 
@@ -143,6 +160,28 @@ def confirm_and_create(
     if pi.status != "requires_capture":
         return None, "pending"
 
+    listing_price = float(
+        client.table("listings")
+        .select("price")
+        .eq("id", listing_id)
+        .single()
+        .execute()
+        .data["price"]
+    )
+
+    rental_days = None
+    rental_start_date = None
+    rental_due_date = None
+    if deal_type == "rent":
+        # Read back from Stripe metadata rather than trusting a second value
+        # from the app — this is the same number Stripe actually charged.
+        rental_days = int(session.metadata.get("rental_days", 1))
+        rental_start_date = date.today()
+        rental_due_date = rental_start_date + timedelta(days=rental_days)
+        amount = listing_price * rental_days
+    else:
+        amount = listing_price
+
     row = (
         client.table("transactions")
         .insert(
@@ -154,6 +193,10 @@ def confirm_and_create(
                 "escrow_status": "held",
                 "stripe_checkout_session_id": session_id,
                 "stripe_payment_intent_id": pi_id,
+                "amount": amount,
+                "rental_days": rental_days,
+                "rental_start_date": rental_start_date.isoformat() if rental_start_date else None,
+                "rental_due_date": rental_due_date.isoformat() if rental_due_date else None,
             }
         )
         .execute()
@@ -198,9 +241,24 @@ def capture(transaction_id: str) -> None:
     if txn["escrow_status"] != "held" or not pi_id:
         return
     stripe.PaymentIntent.capture(pi_id)
-    get_service_client().table("transactions").update(
+    client = get_service_client()
+    client.table("transactions").update(
         {"escrow_status": "captured"}
     ).eq("id", transaction_id).execute()
+
+    # Credit the seller's simulated wallet for the captured amount. Wrapped
+    # so a duplicate call (capture() is otherwise idempotent) can't double
+    # credit — the unique index on wallet_ledger.transaction_id rejects it.
+    amount = txn.get("amount") or txn["listings"]["price"]
+    try:
+        client.table("wallet_ledger").insert({
+            "user_id": txn["seller_id"],
+            "transaction_id": transaction_id,
+            "amount": amount,
+            "type": "credit",
+        }).execute()
+    except Exception:
+        pass
 
 
 def refund(transaction_id: str) -> None:

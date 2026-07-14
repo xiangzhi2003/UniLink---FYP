@@ -11,6 +11,7 @@ import '../../widgets/stamp_mark.dart';
 import '../marketplace/favorites_screen.dart';
 import '../marketplace/my_listings_screen.dart';
 import '../transactions/transactions_list_screen.dart';
+import '../wallet/wallet_screen.dart';
 import 'edit_profile_screen.dart';
 
 /// The signed-in user's profile tab: identity, quick access to My Listings/My
@@ -125,6 +126,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         label: 'Favorites',
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: _QuickAction(
+                        icon: Icons.account_balance_wallet_outlined,
+                        label: 'Wallet',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const WalletScreen()),
                         ),
                       ),
                     ),

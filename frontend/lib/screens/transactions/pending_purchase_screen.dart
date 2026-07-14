@@ -27,6 +27,10 @@ class _PendingPurchaseScreenState extends ConsumerState<PendingPurchaseScreen> {
   String? _sessionId;
   bool _busy = false;
   String? _error;
+  int _rentalDays = 1;
+
+  bool get _isRent => widget.listing.listingType == 'rent';
+  double get _total => widget.listing.price * (_isRent ? _rentalDays : 1);
 
   Future<void> _pay() async {
     setState(() {
@@ -38,6 +42,7 @@ class _PendingPurchaseScreenState extends ConsumerState<PendingPurchaseScreen> {
             listingId: widget.listing.id!,
             sellerId: widget.listing.sellerId,
             type: widget.listing.listingType,
+            rentalDays: _isRent ? _rentalDays : null,
           );
       _sessionId = result.sessionId;
       final ok = await launchUrl(
@@ -114,6 +119,38 @@ class _PendingPurchaseScreenState extends ConsumerState<PendingPurchaseScreen> {
                     .titleLarge
                     ?.copyWith(color: scheme.secondary),
               ),
+              if (isRent) ...[
+                const SizedBox(height: AppSpacing.lg),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Number of days'),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline),
+                          onPressed: _sessionId != null || _rentalDays <= 1
+                              ? null
+                              : () => setState(() => _rentalDays--),
+                        ),
+                        Text('$_rentalDays', style: Theme.of(context).textTheme.titleMedium),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle_outline),
+                          onPressed: _sessionId != null || _rentalDays >= 30
+                              ? null
+                              : () => setState(() => _rentalDays++),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'RM ${listing.price.toStringAsFixed(2)} × $_rentalDays days = '
+                  'RM ${_total.toStringAsFixed(2)}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
               const SizedBox(height: AppSpacing.xl),
               StatusBanner(
                 icon: Icons.lock_clock_outlined,
@@ -135,7 +172,7 @@ class _PendingPurchaseScreenState extends ConsumerState<PendingPurchaseScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: PrimaryButton(
-                    label: 'Pay RM ${listing.price.toStringAsFixed(2)}',
+                    label: 'Pay RM ${_total.toStringAsFixed(2)}',
                     icon: Icons.credit_card,
                     isLoading: _busy,
                     onPressed: _busy ? null : _pay,
