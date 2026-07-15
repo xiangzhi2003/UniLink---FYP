@@ -46,3 +46,14 @@ class SuggestListingResponse(BaseModel):
     description: str
     category: str  # always one of Listing.categories -- validated server-side
     price: float | None = None
+
+
+class ListingChatRequest(BaseModel):
+    listing_id: str
+    message: str
+    history: list[ConversationTurn] = []
+
+
+class ListingChatResponse(BaseModel):
+    reply: str
+    related_listing_ids: list[str] = []

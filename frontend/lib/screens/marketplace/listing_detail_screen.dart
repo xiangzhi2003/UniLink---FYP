@@ -14,6 +14,7 @@ import '../chat/chat_detail_screen.dart';
 import '../profile/seller_profile_screen.dart';
 import '../transactions/pending_purchase_screen.dart';
 import 'fullscreen_image_viewer.dart';
+import 'listing_chat_screen.dart';
 
 /// Full listing view: photo gallery, all details, seller row, and actions
 /// (Buy/Book starts a deal → QR handshake; Message Seller opens a chat).
@@ -433,6 +434,19 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                         label: 'Message Seller',
                         icon: Icons.chat_bubble_outline,
                         onPressed: _messageSeller,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: SecondaryButton(
+                        label: 'Ask AI about this item',
+                        icon: Icons.auto_awesome,
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ListingChatScreen(listing: listing),
+                          ),
+                        ),
                       ),
                     ),
                   ],

@@ -184,6 +184,27 @@ class BackendService {
     );
   }
 
+  /// AI chatbot scoped to one specific listing — answers questions about
+  /// that item using both its real details and the model's own general
+  /// knowledge, and can point to similar listings.
+  Future<({String reply, List<String> relatedListingIds})> askAboutListing({
+    required String listingId,
+    required String message,
+    required List<({String role, String text})> history,
+  }) async {
+    final json = await _post('/search/listing-chat', {
+      'listing_id': listingId,
+      'message': message,
+      'history': [
+        for (final turn in history) {'role': turn.role, 'text': turn.text},
+      ],
+    });
+    return (
+      reply: json['reply'] as String,
+      relatedListingIds: (json['related_listing_ids'] as List<dynamic>).cast<String>(),
+    );
+  }
+
   /// AI-assisted listing creation: suggest a title/description/category/
   /// price from a seller's rough note and/or up to 3 photos.
   Future<({String title, String description, String category, double? price})>

@@ -8,6 +8,8 @@ from models.search import (
     ConciergeResponse,
     DeleteListingRequest,
     EmbedListingRequest,
+    ListingChatRequest,
+    ListingChatResponse,
     OkResponse,
     SearchQueryRequest,
     SearchQueryResponse,
@@ -188,3 +190,85 @@ async def suggest_listing(
     return SuggestListingResponse(
         title=title, description=description, category=category, price=price
     )
+
+
+@router.post("/listing-chat", response_model=ListingChatResponse)
+async def listing_chat(
+    payload: ListingChatRequest,
+    user_id: str = Depends(current_user_id),
+):
+    """AI chatbot scoped to one specific listing — answers questions about
+    that item using both its real details (fetched server-side, never
+    trusted from the client) and the model's own general knowledge, and can
+    point to similar listings already on the marketplace."""
+    row = (
+        get_service_client()
+        .table("listings")
+        .select("id, title, description, category, price, condition, listing_type")
+        .eq("id", payload.listing_id)
+        .maybe_single()
+        .execute()
+    )
+    if not row or not row.data:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    listing = row.data
+
+    try:
+        related_ids: list[str] = []
+        try:
+            candidates = embedding_service.query_listings(
+                f"{listing['title']} {listing['category']}", top_k=5
+            )
+            related_ids = [i for i in candidates if i != listing["id"]][:4]
+        except Exception:
+            related_ids = []  # related-item suggestions are a nice-to-have, not essential
+
+        related_summaries = []
+        if related_ids:
+            rows = (
+                get_service_client()
+                .table("listings")
+                .select("id, title, price, category")
+                .in_("id", related_ids)
+                .eq("status", "active")
+                .execute()
+                .data
+            )
+            by_id = {r["id"]: r for r in rows}
+            related_summaries = [by_id[i] for i in related_ids if i in by_id]
+
+        related_text = (
+            "\n".join(
+                f'- "{s["title"]}" (RM {s["price"]}, {s["category"]})' for s in related_summaries
+            )
+            if related_summaries
+            else "(none found)"
+        )
+        history_text = "\n".join(
+            f'{turn.role}: {turn.text}' for turn in payload.history[-6:]
+        )
+
+        prompt = (
+            "You are a helpful assistant embedded on a UniLink campus marketplace "
+            "listing page. A student is viewing this listing:\n"
+            f"Title: {listing['title']}\n"
+            f"Description: {listing['description']}\n"
+            f"Category: {listing['category']}\n"
+            f"Condition: {listing['condition']}\n"
+            f"Price: RM {listing['price']}"
+            f"{' / day (for rent)' if listing['listing_type'] == 'rent' else ''}\n\n"
+            "Answer their questions about this item. You may use your own general "
+            "knowledge about this type of product (how it's used, tips, safety "
+            "notes, typical value) in addition to the listing's own details. Be "
+            "concise and honest. If relevant, you can mention these other similar "
+            "listings already on the marketplace:\n"
+            f"{related_text}\n\n"
+            f"Recent conversation:\n{history_text}\n\n"
+            f"Student's message: {payload.message}"
+        )
+        reply = generation_service.generate_text(prompt)
+        return ListingChatResponse(
+            reply=reply, related_listing_ids=[s["id"] for s in related_summaries]
+        )
+    except Exception:
+        raise HTTPException(status_code=502, detail="AI assistant is temporarily unavailable")

@@ -5,9 +5,8 @@ import '../../providers/listing_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/error_messages.dart';
-import '../../widgets/colored_header.dart';
 import '../../widgets/listing_card.dart';
-import '../marketplace/listing_detail_screen.dart';
+import 'listing_detail_screen.dart';
 
 class _Msg {
   final bool fromMe;
@@ -17,46 +16,54 @@ class _Msg {
   const _Msg.results(this.text, this.results) : fromMe = false;
 }
 
-/// Chat-style AI concierge: a conversational search that understands intent
-/// (via Gemini) rather than just keywords, backed by Pinecone semantic
-/// search over listing embeddings (Sprint 3C).
-class AiSearchScreen extends ConsumerStatefulWidget {
-  const AiSearchScreen({super.key});
+/// AI chatbot scoped to one specific listing — pushed as its own screen from
+/// [ListingDetailScreen]'s "Ask AI about this item" button. Answers using
+/// both the listing's real details and the model's own general knowledge,
+/// and can surface similar listings already on the marketplace. Same
+/// chat-bubble pattern as AiSearchScreen, but grounded to one item instead
+/// of a marketplace-wide search.
+class ListingChatScreen extends ConsumerStatefulWidget {
+  final Listing listing;
+
+  const ListingChatScreen({super.key, required this.listing});
 
   @override
-  ConsumerState<AiSearchScreen> createState() => _AiSearchScreenState();
+  ConsumerState<ListingChatScreen> createState() => _ListingChatScreenState();
 }
 
-class _AiSearchScreenState extends ConsumerState<AiSearchScreen> {
+class _ListingChatScreenState extends ConsumerState<ListingChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _messages = <_Msg>[];
   final List<({String role, String text})> _history = [];
-  bool _searching = false;
+  bool _sending = false;
 
-  static const _suggestions = [
-    'Cheap calculator for engineering',
-    'Textbooks for first year',
-    'Something to rent for an event',
+  late final List<String> _suggestions = [
+    'Is this a good deal?',
+    'How do I use this?',
+    'Any tips or things to know?',
+    'Show me similar items',
   ];
 
-  Future<void> _search(String query) async {
-    final q = query.trim();
-    if (q.isEmpty || _searching) return;
+  Future<void> _send(String message) async {
+    final q = message.trim();
+    if (q.isEmpty || _sending) return;
     _controller.clear();
     setState(() {
       _messages.add(_Msg.user(q));
-      _searching = true;
+      _sending = true;
     });
     _scrollToBottom();
 
     try {
-      final res = await ref
-          .read(backendServiceProvider)
-          .askConcierge(message: q, history: _history);
+      final res = await ref.read(backendServiceProvider).askAboutListing(
+            listingId: widget.listing.id!,
+            message: q,
+            history: _history,
+          );
       final listings = await ref
           .read(listingServiceProvider)
-          .fetchListingsByIds(res.listingIds);
+          .fetchListingsByIds(res.relatedListingIds);
 
       setState(() {
         _messages.add(_Msg.results(res.reply, listings));
@@ -71,7 +78,7 @@ class _AiSearchScreenState extends ConsumerState<AiSearchScreen> {
         _messages.add(_Msg.results(friendlyErrorMessage(e), []));
       });
     } finally {
-      if (mounted) setState(() => _searching = false);
+      if (mounted) setState(() => _sending = false);
       _scrollToBottom();
     }
   }
@@ -97,74 +104,58 @@ class _AiSearchScreenState extends ConsumerState<AiSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // No own Scaffold — hosted inside HomeShell's ambient Scaffold, same as
-    // the other tab bodies (Browse/Chat/Profile).
-    return Column(
-      children: [
-        ColoredHeader(
-          child: Row(
-            children: [
-              const Icon(Icons.auto_awesome, color: Colors.white, size: 22),
-              const SizedBox(width: 10),
-              Text(
-                'AI Search',
-                style: Theme.of(
-                  context,
-                ).textTheme.headlineSmall?.copyWith(color: Colors.white),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child:
-              _messages.isEmpty
-                  ? _greeting(context)
-                  : ListView.builder(
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.listing.title, overflow: TextOverflow.ellipsis),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: _messages.isEmpty
+                ? _greeting(context)
+                : ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(16),
                     itemCount: _messages.length,
-                    itemBuilder:
-                        (context, index) => _bubble(context, _messages[index]),
+                    itemBuilder: (context, index) => _bubble(context, _messages[index]),
                   ),
-        ),
-        if (_searching) const LinearProgressIndicator(minHeight: 2),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    textInputAction: TextInputAction.search,
-                    onSubmitted: _search,
-                    decoration: const InputDecoration(
-                      hintText: 'Describe what you need...',
+          ),
+          if (_sending) const LinearProgressIndicator(minHeight: 2),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: _send,
+                      decoration: const InputDecoration(
+                        hintText: 'Ask about this item...',
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  onPressed:
-                      _searching ? null : () => _search(_controller.text),
-                  icon: const Icon(Icons.send),
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.gold,
-                    foregroundColor: const Color(0xFF3A2200),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    onPressed: _sending ? null : () => _send(_controller.text),
+                    icon: const Icon(Icons.send),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.gold,
+                      foregroundColor: const Color(0xFF3A2200),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _greeting(BuildContext context) {
-    // SingleChildScrollView (not Center) so this scrolls instead of
-    // overflowing when the keyboard opens and shrinks the available height.
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -178,7 +169,7 @@ class _AiSearchScreenState extends ConsumerState<AiSearchScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'What are you looking for?',
+              'Ask me anything about "${widget.listing.title}"!',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleLarge,
             ),
@@ -189,7 +180,7 @@ class _AiSearchScreenState extends ConsumerState<AiSearchScreen> {
               alignment: WrapAlignment.center,
               children: [
                 for (final s in _suggestions)
-                  ActionChip(label: Text(s), onPressed: () => _search(s)),
+                  ActionChip(label: Text(s), onPressed: () => _send(s)),
               ],
             ),
           ],
@@ -246,13 +237,11 @@ class _AiSearchScreenState extends ConsumerState<AiSearchScreen> {
                   final listing = msg.results![i];
                   return ListingCard(
                     listing: listing,
-                    onTap:
-                        () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder:
-                                (_) => ListingDetailScreen(listing: listing),
-                          ),
-                        ),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ListingDetailScreen(listing: listing),
+                      ),
+                    ),
                   );
                 },
               ),
