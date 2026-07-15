@@ -172,20 +172,6 @@ class BackendService {
     return (json['listing_ids'] as List<dynamic>).cast<String>();
   }
 
-  /// Compares a listing's price against similar active listings found via
-  /// semantic search. The verdict/message are computed with plain
-  /// arithmetic server-side, not the LLM, so the numbers are always exact.
-  Future<({String verdict, int comparableCount, double? averagePrice, String message})>
-      checkPriceFairness(String listingId) async {
-    final json = await _post('/search/price-check', {'listing_id': listingId});
-    return (
-      verdict: json['verdict'] as String,
-      comparableCount: json['comparable_count'] as int,
-      averagePrice: (json['average_price'] as num?)?.toDouble(),
-      message: json['message'] as String,
-    );
-  }
-
   /// AI chatbot scoped to one specific listing — answers questions about
   /// that item using both its real details and the model's own general
   /// knowledge. Pure Q&A, doesn't surface other listings.

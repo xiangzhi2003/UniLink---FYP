@@ -9,8 +9,6 @@ from models.search import (
     ListingChatRequest,
     ListingChatResponse,
     OkResponse,
-    PriceCheckRequest,
-    PriceCheckResponse,
     SearchQueryRequest,
     SearchQueryResponse,
     SuggestListingRequest,
@@ -200,83 +198,3 @@ async def listing_chat(
         return ListingChatResponse(reply=reply)
     except Exception:
         raise HTTPException(status_code=502, detail="AI assistant is temporarily unavailable")
-
-
-@router.post("/price-check", response_model=PriceCheckResponse)
-async def price_check(
-    payload: PriceCheckRequest,
-    user_id: str = Depends(current_user_id),
-):
-    """Compares a listing's price against similar active listings found via
-    semantic search. Retrieval is AI (Pinecone), but the verdict itself is
-    plain arithmetic on real Supabase prices -- never hallucinated."""
-    row = (
-        get_service_client()
-        .table("listings")
-        .select("id, title, description, category, price, listing_type")
-        .eq("id", payload.listing_id)
-        .maybe_single()
-        .execute()
-    )
-    if not row or not row.data:
-        raise HTTPException(status_code=404, detail="Listing not found")
-    listing = row.data
-
-    try:
-        text = f"{listing['title']}\n{listing['description']}\nCategory: {listing['category']}"
-        ids = embedding_service.query_listings(text, top_k=20)
-        ids = [i for i in ids if i != listing["id"]]
-
-        comparables = []
-        if ids:
-            comparables = (
-                get_service_client()
-                .table("listings")
-                .select("id, price")
-                .in_("id", ids)
-                .eq("status", "active")
-                .eq("listing_type", listing["listing_type"])
-                .execute()
-                .data
-            )
-    except Exception:
-        raise HTTPException(status_code=502, detail="Price check unavailable")
-
-    if len(comparables) < 3:
-        return PriceCheckResponse(
-            verdict="insufficient_data",
-            comparable_count=len(comparables),
-            average_price=None,
-            message="Not enough similar listings yet to compare pricing.",
-        )
-
-    prices = [c["price"] for c in comparables]
-    average = sum(prices) / len(prices)
-    own_price = listing["price"]
-    ratio = own_price / average if average else 1.0
-
-    if ratio <= 0.85:
-        verdict = "great_deal"
-        message = (
-            f"Priced {round((1 - ratio) * 100)}% below the average of "
-            f"RM{average:.2f} across {len(comparables)} similar listings."
-        )
-    elif ratio <= 1.15:
-        verdict = "fair"
-        message = (
-            f"In line with the average of RM{average:.2f} across "
-            f"{len(comparables)} similar listings."
-        )
-    else:
-        verdict = "above_average"
-        message = (
-            f"Priced {round((ratio - 1) * 100)}% above the average of "
-            f"RM{average:.2f} across {len(comparables)} similar listings."
-        )
-
-    return PriceCheckResponse(
-        verdict=verdict,
-        comparable_count=len(comparables),
-        average_price=round(average, 2),
-        message=message,
-    )

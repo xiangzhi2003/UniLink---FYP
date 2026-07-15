@@ -46,14 +46,3 @@ class ListingChatRequest(BaseModel):
 
 class ListingChatResponse(BaseModel):
     reply: str
-
-
-class PriceCheckRequest(BaseModel):
-    listing_id: str
-
-
-class PriceCheckResponse(BaseModel):
-    verdict: str  # "great_deal" | "fair" | "above_average" | "insufficient_data"
-    comparable_count: int
-    average_price: float | None = None
-    message: str  # human-readable, built in plain Python -- no LLM call

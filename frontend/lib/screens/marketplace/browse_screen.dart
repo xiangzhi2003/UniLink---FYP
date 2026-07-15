@@ -13,11 +13,13 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/listing_card.dart';
 import 'listing_detail_screen.dart';
 
-/// Marketplace home: category tabs + AI-powered semantic search (Pinecone,
-/// via the backend's /search/query) over a responsive grid of active
-/// listings. Falls back to a plain Supabase ilike keyword search if the
-/// semantic search request fails or returns nothing, so the search bar
-/// never visibly breaks.
+/// Marketplace home: category tabs + a blended search (AI semantic search
+/// via Pinecone, merged with a plain Supabase ilike keyword search) over a
+/// responsive grid of active listings. Blending covers both directions: a
+/// meaning-based query keyword search would miss, and a keyword match
+/// semantic search's relevance threshold might filter out on a small
+/// catalog. If semantic search fails outright, keyword results alone still
+/// carry the screen.
 class BrowseScreen extends ConsumerStatefulWidget {
   const BrowseScreen({super.key});
 
@@ -57,35 +59,58 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
     final category = _selectedTab == 'All' ? null : _selectedTab;
     final listingType = _typeTabs[_selectedTypeTab];
     final myId = ref.read(authServiceProvider).currentUser?.id;
+    final query = _query.trim();
 
-    if (_query.trim().isNotEmpty) {
-      try {
-        final ids = await ref
-            .read(backendServiceProvider)
-            .semanticSearchListings(_query);
-        if (ids.isNotEmpty) {
-          final results = await listingService.fetchListingsByIds(ids);
-          return results.where((l) {
-            if (l.sellerId == myId) return false;
-            if (category != null && l.category != category) return false;
-            if (listingType != null && l.listingType != listingType) {
-              return false;
-            }
-            return true;
-          }).toList();
-        }
-      } catch (_) {
-        // Semantic search unavailable — fall through to the keyword search
-        // below so the search bar never visibly breaks.
-      }
-    }
-
-    final results = await listingService.fetchActiveListings(
+    final keywordFuture = listingService.fetchActiveListings(
       category: category,
       query: _query,
       listingType: listingType,
     );
-    return results.where((l) => l.sellerId != myId).toList();
+
+    if (query.isEmpty) {
+      final results = await keywordFuture;
+      return results.where((l) => l.sellerId != myId).toList();
+    }
+
+    // Blend both sources instead of an all-or-nothing fallback: semantic
+    // search catches meaning-based matches keyword search would miss (and
+    // vice versa on a small catalog where the relevance threshold can leave
+    // it with nothing), so run them in parallel and merge, semantic first
+    // since it's ranked by relevance.
+    final semanticFuture = _semanticSearch(query, category, listingType);
+    final combined = await Future.wait([semanticFuture, keywordFuture]);
+    final semanticResults = combined[0];
+    final keywordResults = combined[1];
+
+    final seenIds = <String>{};
+    final merged = <Listing>[];
+    for (final listing in [...semanticResults, ...keywordResults]) {
+      if (listing.sellerId == myId) continue;
+      final id = listing.id;
+      if (id != null && !seenIds.add(id)) continue;
+      merged.add(listing);
+    }
+    return merged;
+  }
+
+  Future<List<Listing>> _semanticSearch(
+    String query,
+    String? category,
+    String? listingType,
+  ) async {
+    try {
+      final ids = await ref.read(backendServiceProvider).semanticSearchListings(query);
+      if (ids.isEmpty) return [];
+      final results = await ref.read(listingServiceProvider).fetchListingsByIds(ids);
+      return results.where((l) {
+        if (category != null && l.category != category) return false;
+        if (listingType != null && l.listingType != listingType) return false;
+        return true;
+      }).toList();
+    } catch (_) {
+      // Semantic search unavailable — keyword results alone still work.
+      return [];
+    }
   }
 
   /// Also called by HomeShell after a new listing is published so the grid
