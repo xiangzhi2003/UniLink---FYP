@@ -49,10 +49,14 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
     _listingsFuture = _fetch();
   }
 
+  /// Home is a discovery feed of *other* students' listings — the signed-in
+  /// user's own listings live in their dedicated "My Listings" tab instead,
+  /// so they're filtered out here rather than shown in a separate section.
   Future<List<Listing>> _fetch() async {
     final listingService = ref.read(listingServiceProvider);
     final category = _selectedTab == 'All' ? null : _selectedTab;
     final listingType = _typeTabs[_selectedTypeTab];
+    final myId = ref.read(authServiceProvider).currentUser?.id;
 
     if (_query.trim().isNotEmpty) {
       try {
@@ -60,6 +64,7 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
         if (ids.isNotEmpty) {
           final results = await listingService.fetchListingsByIds(ids);
           return results.where((l) {
+            if (l.sellerId == myId) return false;
             if (category != null && l.category != category) return false;
             if (listingType != null && l.listingType != listingType) return false;
             return true;
@@ -71,11 +76,12 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
       }
     }
 
-    return listingService.fetchActiveListings(
+    final results = await listingService.fetchActiveListings(
       category: category,
       query: _query,
       listingType: listingType,
     );
+    return results.where((l) => l.sellerId != myId).toList();
   }
 
   /// Also called by HomeShell after a new listing is published so the grid
@@ -308,35 +314,11 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
                             : constraints.maxWidth >= 600
                             ? 3
                             : 2;
-                    final myId = ref.read(authServiceProvider).currentUser?.id;
-                    final mine =
-                        listings.where((l) => l.sellerId == myId).toList();
-                    final others =
-                        listings.where((l) => l.sellerId != myId).toList();
 
                     return ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
-                      children: [
-                        if (mine.isNotEmpty) ...[
-                          _sectionHeader(context, 'Your Listings', mine.length),
-                          Transform.translate(
-                            offset: const Offset(0, -20),
-                            child: _buildGrid(mine, columns),
-                          ),
-                        ],
-                        if (others.isNotEmpty) ...[
-                          _sectionHeader(
-                            context,
-                            'Other Listings',
-                            others.length,
-                          ),
-                          Transform.translate(
-                            offset: const Offset(0, -20),
-                            child: _buildGrid(others, columns),
-                          ),
-                        ],
-                      ],
+                      children: [_buildGrid(listings, columns)],
                     );
                   },
                 );
@@ -345,37 +327,6 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _sectionHeader(BuildContext context, String label, int count) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 5, 4, 0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              height: 1,
-              leadingDistribution: TextLeadingDistribution.even,
-            ),
-          ),
-          Text(
-            '$count item${count == 1 ? '' : 's'}',
-            style: TextStyle(
-              color: scheme.onSurfaceVariant,
-              fontSize: 13,
-              height: 1,
-              leadingDistribution: TextLeadingDistribution.even,
-            ),
-          ),
-        ],
-      ),
     );
   }
 

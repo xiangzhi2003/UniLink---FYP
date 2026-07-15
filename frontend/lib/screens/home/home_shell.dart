@@ -6,12 +6,13 @@ import '../../widgets/app_bottom_nav.dart';
 import '../chat/chat_list_screen.dart';
 import '../marketplace/browse_screen.dart';
 import '../marketplace/create_listing_screen.dart';
+import '../marketplace/my_listings_screen.dart';
 import '../profile/profile_screen.dart';
 
-/// Signed-in shell: Home / Sell / Chat / Profile, with a bottom nav bar on
-/// phones and a side rail on wide screens. Deals and My Listings are no
-/// longer top-level tabs — they're reached from Profile. AI search now lives
-/// per-listing ("Ask AI about this item") rather than as its own tab.
+/// Signed-in shell: Home / Chat / Sell / My Listings / Profile, with a
+/// bottom nav bar on phones and a side rail on wide screens. Deals are
+/// reached from Profile. AI search now lives per-listing ("Ask AI about
+/// this item") rather than as its own tab.
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
@@ -24,8 +25,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   final _browseKey = GlobalKey<BrowseScreenState>();
   final _chatsKey = GlobalKey<ChatListScreenState>();
+  final _myListingsKey = GlobalKey<MyListingsScreenState>();
 
-  static const _titles = {0: 'Home', 2: 'Chat', 3: 'Profile'};
+  static const _titles = {0: 'Home', 1: 'Chat', 3: 'My Listings', 4: 'Profile'};
 
   Future<void> _openCreateListing() async {
     final created = await Navigator.of(context).push<bool>(
@@ -33,11 +35,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     );
     if (created == true) {
       _browseKey.currentState?.reload();
+      _myListingsKey.currentState?.reload();
     }
   }
 
   void _selectTab(int index) {
-    if (index == 1) {
+    if (index == 2) {
       _openCreateListing();
       return;
     }
@@ -52,7 +55,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
     final body = switch (_tab) {
       0 => BrowseScreen(key: _browseKey),
-      2 => ChatListScreen(key: _chatsKey),
+      1 => ChatListScreen(key: _chatsKey),
+      3 => MyListingsScreen(key: _myListingsKey),
       _ => const ProfileScreen(),
     };
 
@@ -86,17 +90,22 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                           selectedIcon: Icon(Icons.home),
                           label: Text('Home'),
                         ),
-                        const NavigationRailDestination(
-                          icon: Icon(Icons.add_circle_outline),
-                          selectedIcon: Icon(Icons.add_circle),
-                          label: Text('Sell'),
-                        ),
                         NavigationRailDestination(
                           icon: unread > 0
                               ? Badge(label: Text('$unread'), child: const Icon(Icons.forum_outlined))
                               : const Icon(Icons.forum_outlined),
                           selectedIcon: const Icon(Icons.forum),
                           label: const Text('Chat'),
+                        ),
+                        const NavigationRailDestination(
+                          icon: Icon(Icons.add_circle_outline),
+                          selectedIcon: Icon(Icons.add_circle),
+                          label: Text('Sell'),
+                        ),
+                        const NavigationRailDestination(
+                          icon: Icon(Icons.storefront_outlined),
+                          selectedIcon: Icon(Icons.storefront),
+                          label: Text('My Listings'),
                         ),
                         NavigationRailDestination(
                           icon: unreadNotifications > 0

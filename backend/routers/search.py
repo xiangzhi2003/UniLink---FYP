@@ -142,10 +142,12 @@ async def listing_chat(
     payload: ListingChatRequest,
     user_id: str = Depends(current_user_id),
 ):
-    """AI chatbot scoped to one specific listing — answers questions about
+    """AI chatbot grounded in one specific listing — answers questions about
     that item using both its real details (fetched server-side, never
-    trusted from the client) and the model's own general knowledge. Pure
-    Q&A only — deliberately doesn't surface other listings."""
+    trusted from the client) and the model's own general knowledge,
+    including comparisons to other real-world brands/products. The only
+    thing it's told not to do is invent *other UniLink listings*, since no
+    marketplace retrieval happens here."""
     row = (
         get_service_client()
         .table("listings")
@@ -164,19 +166,28 @@ async def listing_chat(
         )
 
         prompt = (
-            "You are a helpful assistant embedded on a UniLink campus marketplace "
-            "listing page. A student is viewing this listing:\n"
+            "You are Gemini, acting as a knowledgeable shopping assistant embedded "
+            "on a UniLink campus marketplace listing page. A student is viewing "
+            "this specific listing:\n"
             f"Title: {listing['title']}\n"
             f"Description: {listing['description']}\n"
             f"Category: {listing['category']}\n"
             f"Condition: {listing['condition']}\n"
             f"Price: RM {listing['price']}"
             f"{' / day (for rent)' if listing['listing_type'] == 'rent' else ''}\n\n"
-            "Answer their questions about this item. You may use your own general "
-            "knowledge about this type of product (how it's used, tips, safety "
-            "notes, typical value) in addition to the listing's own details. Be "
-            "concise and honest. Stay focused on this item — don't suggest or "
-            "mention other listings.\n\n"
+            "Treat the listing as context, not a boundary — answer naturally and "
+            "helpfully like you normally would, using your full general knowledge. "
+            "This includes comparing this item to other real brands, products, or "
+            "alternatives the student asks about (e.g. if this listing is a "
+            "specific supplement brand and the student asks how it compares to a "
+            "different brand, give a genuine, informative comparison). Don't "
+            "artificially restrict yourself to only this listing's own text.\n\n"
+            "The one thing you must not do: don't invent or claim knowledge of "
+            "*other listings currently on UniLink* — you have no access to the "
+            "marketplace's other listings in this conversation. If the student "
+            "asks you to find alternatives on UniLink itself, tell them to browse "
+            "or search the marketplace instead.\n\n"
+            "Be concise and honest.\n\n"
             f"Recent conversation:\n{history_text}\n\n"
             f"Student's message: {payload.message}"
         )

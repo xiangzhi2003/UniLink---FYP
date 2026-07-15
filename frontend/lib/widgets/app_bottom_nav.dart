@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// 4-item bottom bar: Home / Sell (raised center action) / Chat / Profile.
-/// The center "Sell" item never shows as selected; it always just triggers
-/// [onSell].
+/// 5-item bottom bar: Home / Chat / Sell (raised center action) / My
+/// Listings / Profile. The center "Sell" item never shows as selected; it
+/// always just triggers [onSell].
 class AppBottomNav extends StatelessWidget {
-  final int selectedIndex; // 0=Home, 2=Chat, 3=Profile
+  final int selectedIndex; // 0=Home, 1=Chat, 3=My Listings, 4=Profile
   final ValueChanged<int> onSelect;
   final VoidCallback onSell;
   final int chatUnreadCount;
@@ -41,21 +41,28 @@ class AppBottomNav extends StatelessWidget {
                 selected: selectedIndex == 0,
                 onTap: () => onSelect(0),
               ),
-              _SellItem(onTap: onSell),
               _NavItem(
                 icon: Icons.forum_outlined,
                 selectedIcon: Icons.forum,
                 label: 'Chat',
-                selected: selectedIndex == 2,
-                onTap: () => onSelect(2),
+                selected: selectedIndex == 1,
+                onTap: () => onSelect(1),
                 badgeCount: chatUnreadCount,
+              ),
+              _SellItem(onTap: onSell),
+              _NavItem(
+                icon: Icons.storefront_outlined,
+                selectedIcon: Icons.storefront,
+                label: 'My Listings',
+                selected: selectedIndex == 3,
+                onTap: () => onSelect(3),
               ),
               _NavItem(
                 icon: Icons.person_outline,
                 selectedIcon: Icons.person,
                 label: 'Profile',
-                selected: selectedIndex == 3,
-                onTap: () => onSelect(3),
+                selected: selectedIndex == 4,
+                onTap: () => onSelect(4),
                 badgeCount: profileUnreadCount,
                 badgeColor: Colors.red,
               ),
