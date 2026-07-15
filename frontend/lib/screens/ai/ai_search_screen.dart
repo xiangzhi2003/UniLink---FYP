@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/listing.dart';
 import '../../providers/listing_provider.dart';
+import '../../providers/transaction_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/error_messages.dart';
 import '../../widgets/colored_header.dart';
 import '../../widgets/listing_card.dart';
 import '../marketplace/listing_detail_screen.dart';
@@ -15,10 +17,9 @@ class _Msg {
   const _Msg.results(this.text, this.results) : fromMe = false;
 }
 
-/// Chat-style search screen, styled like the reference's AI Concierge.
-/// Wired to plain keyword search for now (Sprint 3C's real Gemini/Pinecone
-/// semantic search is parked) — this screen exists so real RAG can be
-/// dropped in later without disturbing the nav.
+/// Chat-style AI concierge: a conversational search that understands intent
+/// (via Gemini) rather than just keywords, backed by Pinecone semantic
+/// search over listing embeddings (Sprint 3C).
 class AiSearchScreen extends ConsumerStatefulWidget {
   const AiSearchScreen({super.key});
 
@@ -30,6 +31,7 @@ class _AiSearchScreenState extends ConsumerState<AiSearchScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _messages = <_Msg>[];
+  final List<({String role, String text})> _history = [];
   bool _searching = false;
 
   static const _suggestions = [
@@ -49,18 +51,24 @@ class _AiSearchScreenState extends ConsumerState<AiSearchScreen> {
     _scrollToBottom();
 
     try {
-      final results = await ref
+      final res = await ref
+          .read(backendServiceProvider)
+          .askConcierge(message: q, history: _history);
+      final listings = await ref
           .read(listingServiceProvider)
-          .fetchActiveListings(query: q);
+          .fetchListingsByIds(res.listingIds);
+
       setState(() {
-        _messages.add(
-          _Msg.results(
-            results.isEmpty
-                ? "I couldn't find anything for \"$q\" — try different words?"
-                : "Here's what I found for \"$q\":",
-            results,
-          ),
-        );
+        _messages.add(_Msg.results(res.reply, listings));
+        _history.add((role: 'user', text: q));
+        _history.add((role: 'assistant', text: res.reply));
+        if (_history.length > 6) {
+          _history.removeRange(0, _history.length - 6);
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _messages.add(_Msg.results(friendlyErrorMessage(e), []));
       });
     } finally {
       if (mounted) setState(() => _searching = false);

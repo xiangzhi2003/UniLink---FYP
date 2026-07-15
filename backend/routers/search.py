@@ -1,15 +1,24 @@
+import base64
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from models.search import (
+    ConciergeRequest,
+    ConciergeResponse,
     DeleteListingRequest,
     EmbedListingRequest,
     OkResponse,
     SearchQueryRequest,
     SearchQueryResponse,
+    SuggestListingRequest,
+    SuggestListingResponse,
 )
-from services import embedding_service
+from services import embedding_service, generation_service
 from services.auth import current_user_id
 from services.supabase_client import get_service_client
+
+_ALLOWED_CATEGORIES = {"Textbooks", "Electronics", "Equipment", "Others"}
 
 router = APIRouter(prefix="/search", tags=["search"])
 
@@ -68,3 +77,114 @@ async def query(
         return SearchQueryResponse(listing_ids=[])
     ids = embedding_service.query_listings(payload.query)
     return SearchQueryResponse(listing_ids=ids)
+
+
+@router.post("/concierge", response_model=ConciergeResponse)
+async def concierge(
+    payload: ConciergeRequest,
+    user_id: str = Depends(current_user_id),
+):
+    """Conversational AI search — retrieves matching listings the same way
+    /query does, then asks Gemini to write a short, friendly reply
+    referencing only those listings."""
+    message = payload.message.strip()
+    if not message:
+        return ConciergeResponse(
+            reply="What are you looking for? Tell me what you need!",
+            listing_ids=[],
+        )
+
+    try:
+        ids = embedding_service.query_listings(message, top_k=6)
+
+        summaries = []
+        if ids:
+            rows = (
+                get_service_client()
+                .table("listings")
+                .select("id, title, price, category")
+                .in_("id", ids)
+                .eq("status", "active")
+                .execute()
+                .data
+            )
+            by_id = {row["id"]: row for row in rows}
+            summaries = [by_id[i] for i in ids if i in by_id]
+
+        listings_text = (
+            "\n".join(
+                f'- "{s["title"]}" (RM {s["price"]}, {s["category"]})' for s in summaries
+            )
+            if summaries
+            else "(no matching listings found)"
+        )
+        history_text = "\n".join(
+            f'{turn.role}: {turn.text}' for turn in payload.history[-6:]
+        )
+
+        prompt = (
+            "You are UniLink's campus marketplace concierge, helping university "
+            "students buy and rent items from each other. Be concise and friendly "
+            "(2-3 sentences). Only reference the listings given below — never "
+            "invent items that aren't listed. If nothing matches, say so plainly "
+            "and suggest the student try different words.\n\n"
+            f"Matching listings:\n{listings_text}\n\n"
+            f"Recent conversation:\n{history_text}\n\n"
+            f"Student's message: {message}"
+        )
+        reply = generation_service.generate_text(prompt)
+        return ConciergeResponse(reply=reply, listing_ids=[s["id"] for s in summaries])
+    except Exception:
+        raise HTTPException(status_code=502, detail="AI concierge is temporarily unavailable")
+
+
+@router.post("/suggest-listing", response_model=SuggestListingResponse)
+async def suggest_listing(
+    payload: SuggestListingRequest,
+    user_id: str = Depends(current_user_id),
+):
+    """AI-assisted listing creation: suggest a title/description/category/
+    price from a seller's rough note and/or photos."""
+    if len(payload.images_base64) > 3:
+        raise HTTPException(status_code=400, detail="Max 3 photos")
+
+    try:
+        images = [base64.b64decode(b) for b in payload.images_base64]
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid image data")
+
+    note_text = payload.note.strip() if payload.note else "(no note provided)"
+    prompt = (
+        "You are a listing assistant for UniLink, a campus marketplace where "
+        "students buy, sell, and rent items. Based on the seller's rough note "
+        "and/or attached photos, suggest a clear, honest listing.\n\n"
+        f"Seller's note: {note_text}\n\n"
+        "Respond with strict JSON only, no other text, with exactly these keys:\n"
+        '- "title": a short, clear listing title\n'
+        '- "description": a 1-3 sentence description\n'
+        '- "category": exactly one of "Textbooks", "Electronics", "Equipment", "Others"\n'
+        '- "price": a fair price in RM as a number (or null if you can\'t estimate one)'
+    )
+
+    try:
+        raw = generation_service.generate_text(prompt, images=images, json_mode=True)
+        parsed = json.loads(raw)
+    except Exception:
+        raise HTTPException(status_code=502, detail="Couldn't generate a suggestion, try again")
+
+    category = parsed.get("category")
+    if category not in _ALLOWED_CATEGORIES:
+        category = "Others"
+
+    title = str(parsed.get("title") or "").strip()[:80] or "Untitled listing"
+    description = str(parsed.get("description") or "").strip() or "No description provided."
+
+    price = parsed.get("price")
+    try:
+        price = float(price) if price is not None and float(price) >= 0 else None
+    except (TypeError, ValueError):
+        price = None
+
+    return SuggestListingResponse(
+        title=title, description=description, category=category, price=price
+    )

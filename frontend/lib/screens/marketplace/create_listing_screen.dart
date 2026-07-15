@@ -62,6 +62,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
   final List<Uint8List> _newImagePreviews = [];
 
   bool _loading = false;
+  bool _suggesting = false;
   String? _error;
   String? _photoError;
 
@@ -88,6 +89,11 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
     // TextEditingController changes don't trigger a rebuild on their own.
     _titleController.addListener(_refreshPreview);
     _priceController.addListener(_refreshPreview);
+    // Keeps the "Improve with AI" button's enabled state live as the user
+    // types (it's disabled when there's nothing for the AI to work from).
+    _descriptionController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   void _refreshPreview() {
@@ -197,6 +203,75 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
           ? "$failedCount photo${failedCount == 1 ? '' : 's'} couldn't be loaded — try picking ${failedCount == 1 ? 'it' : 'them'} again."
           : null;
     });
+  }
+
+  Future<void> _improveWithAi() async {
+    if (_suggesting) return;
+    setState(() => _suggesting = true);
+    try {
+      final note = _descriptionController.text.trim();
+      final suggestion = await ref.read(backendServiceProvider).suggestListingDetails(
+            note: note.isEmpty ? null : note,
+            images: _newImagePreviews.take(3).toList(),
+          );
+      if (!mounted) return;
+      final apply = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.auto_awesome),
+              SizedBox(width: AppSpacing.sm),
+              Text('AI suggestion'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(suggestion.title, style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: AppSpacing.sm),
+                Text(suggestion.description),
+                const SizedBox(height: AppSpacing.sm),
+                Text('Category: ${suggestion.category}'),
+                if (suggestion.price != null)
+                  Text('Suggested price: RM ${suggestion.price!.toStringAsFixed(2)}'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Discard'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Apply'),
+            ),
+          ],
+        ),
+      );
+      if (apply == true) {
+        setState(() {
+          _titleController.text = suggestion.title;
+          _descriptionController.text = suggestion.description;
+          _category = suggestion.category;
+          _categoryError = null;
+          if (suggestion.price != null) {
+            _priceController.text = suggestion.price!.toStringAsFixed(2);
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(friendlyErrorMessage(e))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _suggesting = false);
+    }
   }
 
   void _goToStep(int step) {
@@ -439,6 +514,25 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                       (value == null || value.trim().isEmpty)
                           ? 'Enter a description'
                           : null,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: (_suggesting ||
+                        (_descriptionController.text.trim().isEmpty &&
+                            _newImagePreviews.isEmpty))
+                    ? null
+                    : _improveWithAi,
+                icon: _suggesting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.auto_awesome, size: 18),
+                label: Text(_suggesting ? 'Thinking...' : 'Improve with AI'),
+              ),
             ),
             const SizedBox(height: AppSpacing.xl),
             _label(context, 'PHOTOS (1-$_maxPhotos)'),

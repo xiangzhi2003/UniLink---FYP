@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
@@ -164,10 +165,39 @@ class BackendService {
     await _post('/search/delete-listing', {'listing_id': listingId});
   }
 
-  /// Semantic search — returns listing ids, most relevant first.
-  Future<List<String>> searchListings(String query) async {
-    final json = await _post('/search/query', {'query': query});
-    return (json['listing_ids'] as List<dynamic>).cast<String>();
+  /// Conversational AI search — a short bounded history of prior turns lets
+  /// the reply stay coherent across follow-up messages (e.g. "actually I
+  /// need one with graphing").
+  Future<({String reply, List<String> listingIds})> askConcierge({
+    required String message,
+    required List<({String role, String text})> history,
+  }) async {
+    final json = await _post('/search/concierge', {
+      'message': message,
+      'history': [
+        for (final turn in history) {'role': turn.role, 'text': turn.text},
+      ],
+    });
+    return (
+      reply: json['reply'] as String,
+      listingIds: (json['listing_ids'] as List<dynamic>).cast<String>(),
+    );
+  }
+
+  /// AI-assisted listing creation: suggest a title/description/category/
+  /// price from a seller's rough note and/or up to 3 photos.
+  Future<({String title, String description, String category, double? price})>
+      suggestListingDetails({String? note, List<Uint8List>? images}) async {
+    final json = await _post('/search/suggest-listing', {
+      if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      'images_base64': [for (final img in images ?? []) base64Encode(img)],
+    });
+    return (
+      title: json['title'] as String,
+      description: json['description'] as String,
+      category: json['category'] as String,
+      price: (json['price'] as num?)?.toDouble(),
+    );
   }
 
   /// Simulated wallet balance + earnings history.
