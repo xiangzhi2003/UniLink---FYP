@@ -79,7 +79,12 @@ def delete_listing(listing_id: str) -> None:
     _get_index().delete(ids=[listing_id])
 
 
-_MIN_SCORE = 0.5
+# Gemini's RETRIEVAL_QUERY/RETRIEVAL_DOCUMENT embeddings have a known
+# baseline cosine-similarity floor (often 0.3-0.6) even between genuinely
+# unrelated text -- 0.5 was too lenient and let nonsense queries match
+# every listing. Raised well above that floor so only real semantic matches
+# clear the bar.
+_MIN_SCORE = 0.68
 
 
 def query_listings(query: str, top_k: int = 30, min_score: float = _MIN_SCORE) -> list[str]:
