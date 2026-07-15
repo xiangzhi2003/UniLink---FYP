@@ -3,15 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../widgets/app_bottom_nav.dart';
-import '../ai/ai_search_screen.dart';
 import '../chat/chat_list_screen.dart';
 import '../marketplace/browse_screen.dart';
 import '../marketplace/create_listing_screen.dart';
 import '../profile/profile_screen.dart';
 
-/// Signed-in shell: Home / AI Search / Sell / Chat / Profile, with a bottom
-/// nav bar on phones and a side rail on wide screens. Deals and My Listings
-/// are no longer top-level tabs — they're reached from Profile.
+/// Signed-in shell: Home / Sell / Chat / Profile, with a bottom nav bar on
+/// phones and a side rail on wide screens. Deals and My Listings are no
+/// longer top-level tabs — they're reached from Profile. AI search now lives
+/// per-listing ("Ask AI about this item") rather than as its own tab.
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
@@ -25,7 +25,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   final _browseKey = GlobalKey<BrowseScreenState>();
   final _chatsKey = GlobalKey<ChatListScreenState>();
 
-  static const _titles = {0: 'Home', 1: 'AI Search', 3: 'Chat', 4: 'Profile'};
+  static const _titles = {0: 'Home', 2: 'Chat', 3: 'Profile'};
 
   Future<void> _openCreateListing() async {
     final created = await Navigator.of(context).push<bool>(
@@ -37,7 +37,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   }
 
   void _selectTab(int index) {
-    if (index == 2) {
+    if (index == 1) {
       _openCreateListing();
       return;
     }
@@ -52,8 +52,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
     final body = switch (_tab) {
       0 => BrowseScreen(key: _browseKey),
-      1 => const AiSearchScreen(),
-      3 => ChatListScreen(key: _chatsKey),
+      2 => ChatListScreen(key: _chatsKey),
       _ => const ProfileScreen(),
     };
 
@@ -86,11 +85,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                           icon: Icon(Icons.home_outlined),
                           selectedIcon: Icon(Icons.home),
                           label: Text('Home'),
-                        ),
-                        const NavigationRailDestination(
-                          icon: Icon(Icons.auto_awesome_outlined),
-                          selectedIcon: Icon(Icons.auto_awesome),
-                          label: Text('AI Search'),
                         ),
                         const NavigationRailDestination(
                           icon: Icon(Icons.add_circle_outline),

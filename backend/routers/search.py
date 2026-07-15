@@ -4,13 +4,13 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 
 from models.search import (
-    ConciergeRequest,
-    ConciergeResponse,
     DeleteListingRequest,
     EmbedListingRequest,
     ListingChatRequest,
     ListingChatResponse,
     OkResponse,
+    PriceCheckRequest,
+    PriceCheckResponse,
     SearchQueryRequest,
     SearchQueryResponse,
     SuggestListingRequest,
@@ -41,15 +41,6 @@ def _owned_listing(listing_id: str, user_id: str) -> dict:
     if row.data["seller_id"] != user_id:
         raise HTTPException(status_code=403, detail="Not your listing")
     return row.data
-
-
-def _format_listing_line(s: dict) -> str:
-    """One line describing a listing for an AI prompt — always states
-    sale/rent explicitly (previously omitted, which meant the model had no
-    way to correctly answer questions like "what's available to rent")."""
-    price = f"RM {s['price']}/day" if s.get("listing_type") == "rent" else f"RM {s['price']}"
-    kind = "For rent" if s.get("listing_type") == "rent" else "For sale"
-    return f'- "{s["title"]}" ({price}, {s["category"]}, {kind})'
 
 
 @router.post("/embed-listing", response_model=OkResponse)
@@ -92,67 +83,6 @@ async def query(
         return SearchQueryResponse(listing_ids=[])
     ids = embedding_service.query_listings(payload.query)
     return SearchQueryResponse(listing_ids=ids)
-
-
-@router.post("/concierge", response_model=ConciergeResponse)
-async def concierge(
-    payload: ConciergeRequest,
-    user_id: str = Depends(current_user_id),
-):
-    """Conversational AI search — retrieves matching listings the same way
-    /query does, then asks Gemini to write a short, friendly reply
-    referencing only those listings."""
-    message = payload.message.strip()
-    if not message:
-        return ConciergeResponse(
-            reply="What are you looking for? Tell me what you need!",
-            listing_ids=[],
-        )
-
-    try:
-        ids = embedding_service.query_listings(message, top_k=6)
-
-        summaries = []
-        if ids:
-            rows = (
-                get_service_client()
-                .table("listings")
-                .select("id, title, price, category, listing_type")
-                .in_("id", ids)
-                .eq("status", "active")
-                .execute()
-                .data
-            )
-            by_id = {row["id"]: row for row in rows}
-            summaries = [by_id[i] for i in ids if i in by_id]
-
-        listings_text = (
-            "\n".join(_format_listing_line(s) for s in summaries)
-            if summaries
-            else "(no matching listings found)"
-        )
-        history_text = "\n".join(
-            f'{turn.role}: {turn.text}' for turn in payload.history[-6:]
-        )
-
-        prompt = (
-            "You are UniLink's campus marketplace concierge, helping university "
-            "students buy and rent items from each other. Be concise and friendly "
-            "(2-3 sentences). Never invent items that aren't listed below.\n\n"
-            "IMPORTANT: the listings below were found by a similarity search and "
-            "may include weak or irrelevant matches — use your own judgment and "
-            "only mention the ones that are genuinely relevant to what the "
-            "student actually asked for. If only some are relevant, mention just "
-            "those. If none are truly relevant, say so plainly (don't force a "
-            "connection) and suggest the student try different words.\n\n"
-            f"Candidate listings:\n{listings_text}\n\n"
-            f"Recent conversation:\n{history_text}\n\n"
-            f"Student's message: {message}"
-        )
-        reply = generation_service.generate_text(prompt)
-        return ConciergeResponse(reply=reply, listing_ids=[s["id"] for s in summaries])
-    except Exception:
-        raise HTTPException(status_code=502, detail="AI concierge is temporarily unavailable")
 
 
 @router.post("/suggest-listing", response_model=SuggestListingResponse)
@@ -214,8 +144,8 @@ async def listing_chat(
 ):
     """AI chatbot scoped to one specific listing — answers questions about
     that item using both its real details (fetched server-side, never
-    trusted from the client) and the model's own general knowledge, and can
-    point to similar listings already on the marketplace."""
+    trusted from the client) and the model's own general knowledge. Pure
+    Q&A only — deliberately doesn't surface other listings."""
     row = (
         get_service_client()
         .table("listings")
@@ -229,34 +159,6 @@ async def listing_chat(
     listing = row.data
 
     try:
-        related_ids: list[str] = []
-        try:
-            candidates = embedding_service.query_listings(
-                f"{listing['title']} {listing['category']}", top_k=5
-            )
-            related_ids = [i for i in candidates if i != listing["id"]][:4]
-        except Exception:
-            related_ids = []  # related-item suggestions are a nice-to-have, not essential
-
-        related_summaries = []
-        if related_ids:
-            rows = (
-                get_service_client()
-                .table("listings")
-                .select("id, title, price, category, listing_type")
-                .in_("id", related_ids)
-                .eq("status", "active")
-                .execute()
-                .data
-            )
-            by_id = {r["id"]: r for r in rows}
-            related_summaries = [by_id[i] for i in related_ids if i in by_id]
-
-        related_text = (
-            "\n".join(_format_listing_line(s) for s in related_summaries)
-            if related_summaries
-            else "(none found)"
-        )
         history_text = "\n".join(
             f'{turn.role}: {turn.text}' for turn in payload.history[-6:]
         )
@@ -273,18 +175,92 @@ async def listing_chat(
             "Answer their questions about this item. You may use your own general "
             "knowledge about this type of product (how it's used, tips, safety "
             "notes, typical value) in addition to the listing's own details. Be "
-            "concise and honest.\n\n"
-            "The listings below were found by a similarity search and may "
-            "include weak or irrelevant matches — only mention ones that are "
-            "genuinely similar/relevant if the student seems interested in "
-            "alternatives. Don't force a mention if none of them actually fit.\n"
-            f"Candidate similar listings:\n{related_text}\n\n"
+            "concise and honest. Stay focused on this item — don't suggest or "
+            "mention other listings.\n\n"
             f"Recent conversation:\n{history_text}\n\n"
             f"Student's message: {payload.message}"
         )
         reply = generation_service.generate_text(prompt)
-        return ListingChatResponse(
-            reply=reply, related_listing_ids=[s["id"] for s in related_summaries]
-        )
+        return ListingChatResponse(reply=reply)
     except Exception:
         raise HTTPException(status_code=502, detail="AI assistant is temporarily unavailable")
+
+
+@router.post("/price-check", response_model=PriceCheckResponse)
+async def price_check(
+    payload: PriceCheckRequest,
+    user_id: str = Depends(current_user_id),
+):
+    """Compares a listing's price against similar active listings found via
+    semantic search. Retrieval is AI (Pinecone), but the verdict itself is
+    plain arithmetic on real Supabase prices -- never hallucinated."""
+    row = (
+        get_service_client()
+        .table("listings")
+        .select("id, title, description, category, price, listing_type")
+        .eq("id", payload.listing_id)
+        .maybe_single()
+        .execute()
+    )
+    if not row or not row.data:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    listing = row.data
+
+    try:
+        text = f"{listing['title']}\n{listing['description']}\nCategory: {listing['category']}"
+        ids = embedding_service.query_listings(text, top_k=20)
+        ids = [i for i in ids if i != listing["id"]]
+
+        comparables = []
+        if ids:
+            comparables = (
+                get_service_client()
+                .table("listings")
+                .select("id, price")
+                .in_("id", ids)
+                .eq("status", "active")
+                .eq("listing_type", listing["listing_type"])
+                .execute()
+                .data
+            )
+    except Exception:
+        raise HTTPException(status_code=502, detail="Price check unavailable")
+
+    if len(comparables) < 3:
+        return PriceCheckResponse(
+            verdict="insufficient_data",
+            comparable_count=len(comparables),
+            average_price=None,
+            message="Not enough similar listings yet to compare pricing.",
+        )
+
+    prices = [c["price"] for c in comparables]
+    average = sum(prices) / len(prices)
+    own_price = listing["price"]
+    ratio = own_price / average if average else 1.0
+
+    if ratio <= 0.85:
+        verdict = "great_deal"
+        message = (
+            f"Priced {round((1 - ratio) * 100)}% below the average of "
+            f"RM{average:.2f} across {len(comparables)} similar listings."
+        )
+    elif ratio <= 1.15:
+        verdict = "fair"
+        message = (
+            f"In line with the average of RM{average:.2f} across "
+            f"{len(comparables)} similar listings."
+        )
+    else:
+        verdict = "above_average"
+        message = (
+            f"Priced {round((ratio - 1) * 100)}% above the average of "
+            f"RM{average:.2f} across {len(comparables)} similar listings."
+        )
+
+    return PriceCheckResponse(
+        verdict=verdict,
+        comparable_count=len(comparables),
+        average_price=round(average, 2),
+        message=message,
+    )

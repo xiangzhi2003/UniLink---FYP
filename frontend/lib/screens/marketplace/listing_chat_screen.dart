@@ -1,27 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/listing.dart';
-import '../../providers/listing_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/error_messages.dart';
-import '../../widgets/listing_card.dart';
-import 'listing_detail_screen.dart';
 
 class _Msg {
   final bool fromMe;
-  final String? text;
-  final List<Listing>? results;
-  const _Msg.user(this.text) : fromMe = true, results = null;
-  const _Msg.results(this.text, this.results) : fromMe = false;
+  final String text;
+  const _Msg(this.text, {required this.fromMe});
 }
 
 /// AI chatbot scoped to one specific listing — pushed as its own screen from
 /// [ListingDetailScreen]'s "Ask AI about this item" button. Answers using
-/// both the listing's real details and the model's own general knowledge,
-/// and can surface similar listings already on the marketplace. Same
-/// chat-bubble pattern as AiSearchScreen, but grounded to one item instead
-/// of a marketplace-wide search.
+/// both the listing's real details and the model's own general knowledge.
+/// Pure Q&A — deliberately doesn't surface other listings.
 class ListingChatScreen extends ConsumerStatefulWidget {
   final Listing listing;
 
@@ -42,7 +35,6 @@ class _ListingChatScreenState extends ConsumerState<ListingChatScreen> {
     'Is this a good deal?',
     'How do I use this?',
     'Any tips or things to know?',
-    'Show me similar items',
   ];
 
   Future<void> _send(String message) async {
@@ -50,32 +42,29 @@ class _ListingChatScreenState extends ConsumerState<ListingChatScreen> {
     if (q.isEmpty || _sending) return;
     _controller.clear();
     setState(() {
-      _messages.add(_Msg.user(q));
+      _messages.add(_Msg(q, fromMe: true));
       _sending = true;
     });
     _scrollToBottom();
 
     try {
-      final res = await ref.read(backendServiceProvider).askAboutListing(
+      final reply = await ref.read(backendServiceProvider).askAboutListing(
             listingId: widget.listing.id!,
             message: q,
             history: _history,
           );
-      final listings = await ref
-          .read(listingServiceProvider)
-          .fetchListingsByIds(res.relatedListingIds);
 
       setState(() {
-        _messages.add(_Msg.results(res.reply, listings));
+        _messages.add(_Msg(reply, fromMe: false));
         _history.add((role: 'user', text: q));
-        _history.add((role: 'assistant', text: res.reply));
+        _history.add((role: 'assistant', text: reply));
         if (_history.length > 6) {
           _history.removeRange(0, _history.length - 6);
         }
       });
     } catch (e) {
       setState(() {
-        _messages.add(_Msg.results(friendlyErrorMessage(e), []));
+        _messages.add(_Msg(friendlyErrorMessage(e), fromMe: false));
       });
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -201,7 +190,7 @@ class _ListingChatScreenState extends ConsumerState<ListingChatScreen> {
             color: scheme.primary,
             borderRadius: BorderRadius.circular(14),
           ),
-          child: Text(msg.text!, style: const TextStyle(color: Colors.white)),
+          child: Text(msg.text, style: const TextStyle(color: Colors.white)),
         ),
       );
     }
@@ -210,44 +199,13 @@ class _ListingChatScreenState extends ConsumerState<ListingChatScreen> {
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
-        width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: scheme.surface,
           border: Border.all(color: scheme.outline),
           borderRadius: BorderRadius.circular(14),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(msg.text ?? '', style: TextStyle(color: scheme.onSurface)),
-            if (msg.results != null && msg.results!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 0.72,
-                ),
-                itemCount: msg.results!.length,
-                itemBuilder: (context, i) {
-                  final listing = msg.results![i];
-                  return ListingCard(
-                    listing: listing,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ListingDetailScreen(listing: listing),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ],
-        ),
+        child: Text(msg.text, style: TextStyle(color: scheme.onSurface)),
       ),
     );
   }

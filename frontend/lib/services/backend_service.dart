@@ -165,29 +165,31 @@ class BackendService {
     await _post('/search/delete-listing', {'listing_id': listingId});
   }
 
-  /// Conversational AI search — a short bounded history of prior turns lets
-  /// the reply stay coherent across follow-up messages (e.g. "actually I
-  /// need one with graphing").
-  Future<({String reply, List<String> listingIds})> askConcierge({
-    required String message,
-    required List<({String role, String text})> history,
-  }) async {
-    final json = await _post('/search/concierge', {
-      'message': message,
-      'history': [
-        for (final turn in history) {'role': turn.role, 'text': turn.text},
-      ],
-    });
+  /// Semantic search — returns listing ids most relevant to the query, most
+  /// relevant first. Used by the Browse screen's search bar.
+  Future<List<String>> semanticSearchListings(String query) async {
+    final json = await _post('/search/query', {'query': query});
+    return (json['listing_ids'] as List<dynamic>).cast<String>();
+  }
+
+  /// Compares a listing's price against similar active listings found via
+  /// semantic search. The verdict/message are computed with plain
+  /// arithmetic server-side, not the LLM, so the numbers are always exact.
+  Future<({String verdict, int comparableCount, double? averagePrice, String message})>
+      checkPriceFairness(String listingId) async {
+    final json = await _post('/search/price-check', {'listing_id': listingId});
     return (
-      reply: json['reply'] as String,
-      listingIds: (json['listing_ids'] as List<dynamic>).cast<String>(),
+      verdict: json['verdict'] as String,
+      comparableCount: json['comparable_count'] as int,
+      averagePrice: (json['average_price'] as num?)?.toDouble(),
+      message: json['message'] as String,
     );
   }
 
   /// AI chatbot scoped to one specific listing — answers questions about
   /// that item using both its real details and the model's own general
-  /// knowledge, and can point to similar listings.
-  Future<({String reply, List<String> relatedListingIds})> askAboutListing({
+  /// knowledge. Pure Q&A, doesn't surface other listings.
+  Future<String> askAboutListing({
     required String listingId,
     required String message,
     required List<({String role, String text})> history,
@@ -199,10 +201,7 @@ class BackendService {
         for (final turn in history) {'role': turn.role, 'text': turn.text},
       ],
     });
-    return (
-      reply: json['reply'] as String,
-      relatedListingIds: (json['related_listing_ids'] as List<dynamic>).cast<String>(),
-    );
+    return json['reply'] as String;
   }
 
   /// AI-assisted listing creation: suggest a title/description/category/

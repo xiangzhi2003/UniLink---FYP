@@ -26,16 +26,6 @@ class ConversationTurn(BaseModel):
     text: str
 
 
-class ConciergeRequest(BaseModel):
-    message: str
-    history: list[ConversationTurn] = []  # bounded to last ~6 turns by the caller
-
-
-class ConciergeResponse(BaseModel):
-    reply: str
-    listing_ids: list[str]  # most relevant first, same convention as SearchQueryResponse
-
-
 class SuggestListingRequest(BaseModel):
     note: str | None = None
     images_base64: list[str] = []  # max 3, enforced server-side
@@ -56,4 +46,14 @@ class ListingChatRequest(BaseModel):
 
 class ListingChatResponse(BaseModel):
     reply: str
-    related_listing_ids: list[str] = []
+
+
+class PriceCheckRequest(BaseModel):
+    listing_id: str
+
+
+class PriceCheckResponse(BaseModel):
+    verdict: str  # "great_deal" | "fair" | "above_average" | "insufficient_data"
+    comparable_count: int
+    average_price: float | None = None
+    message: str  # human-readable, built in plain Python -- no LLM call

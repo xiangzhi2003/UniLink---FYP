@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/listing.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/listing_provider.dart';
+import '../../providers/transaction_provider.dart' show backendServiceProvider;
 import '../../theme/app_tokens.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/colored_header.dart';
@@ -12,10 +13,11 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/listing_card.dart';
 import 'listing_detail_screen.dart';
 
-/// Marketplace home: category tabs + keyword search over a responsive grid of
-/// active listings. (Semantic/RAG search is Sprint 3C — parked for now; this
-/// uses the plain ilike keyword fallback so search works without Gemini/
-/// Pinecone configured.)
+/// Marketplace home: category tabs + AI-powered semantic search (Pinecone,
+/// via the backend's /search/query) over a responsive grid of active
+/// listings. Falls back to a plain Supabase ilike keyword search if the
+/// semantic search request fails or returns nothing, so the search bar
+/// never visibly breaks.
 class BrowseScreen extends ConsumerStatefulWidget {
   const BrowseScreen({super.key});
 
@@ -48,13 +50,32 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
   }
 
   Future<List<Listing>> _fetch() async {
-    return ref
-        .read(listingServiceProvider)
-        .fetchActiveListings(
-          category: _selectedTab == 'All' ? null : _selectedTab,
-          query: _query,
-          listingType: _typeTabs[_selectedTypeTab],
-        );
+    final listingService = ref.read(listingServiceProvider);
+    final category = _selectedTab == 'All' ? null : _selectedTab;
+    final listingType = _typeTabs[_selectedTypeTab];
+
+    if (_query.trim().isNotEmpty) {
+      try {
+        final ids = await ref.read(backendServiceProvider).semanticSearchListings(_query);
+        if (ids.isNotEmpty) {
+          final results = await listingService.fetchListingsByIds(ids);
+          return results.where((l) {
+            if (category != null && l.category != category) return false;
+            if (listingType != null && l.listingType != listingType) return false;
+            return true;
+          }).toList();
+        }
+      } catch (_) {
+        // Semantic search unavailable — fall through to the keyword search
+        // below so the search bar never visibly breaks.
+      }
+    }
+
+    return listingService.fetchActiveListings(
+      category: category,
+      query: _query,
+      listingType: listingType,
+    );
   }
 
   /// Also called by HomeShell after a new listing is published so the grid
@@ -151,13 +172,13 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
                             },
                           ),
                         IconButton(
-                          tooltip: 'AI Search',
+                          tooltip: 'This search understands natural language, powered by AI',
                           icon: Icon(Icons.auto_awesome, color: scheme.primary),
                           onPressed: () {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                  'Try the AI Search tab below for natural-language search',
+                                  'Try describing what you need in your own words — search understands meaning, not just keywords',
                                 ),
                               ),
                             );

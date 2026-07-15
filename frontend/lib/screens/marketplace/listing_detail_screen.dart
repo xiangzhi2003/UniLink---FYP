@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/listing.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/transaction_provider.dart' show backendServiceProvider;
 import '../../theme/app_theme.dart';
 import '../../theme/app_tokens.dart';
 import '../../widgets/app_button.dart';
@@ -31,6 +32,28 @@ class ListingDetailScreen extends ConsumerStatefulWidget {
 class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
   final _pageController = PageController();
   int _currentPhoto = 0;
+
+  // Nice-to-have, not core functionality — a failure (or "insufficient
+  // data") just means no badge shows, never an error the user sees.
+  late final Future<({String verdict, int comparableCount, double? averagePrice, String message})?>
+      _priceFairnessFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _priceFairnessFuture = _loadPriceFairness();
+  }
+
+  Future<({String verdict, int comparableCount, double? averagePrice, String message})?>
+      _loadPriceFairness() async {
+    final id = widget.listing.id;
+    if (id == null) return null;
+    try {
+      return await ref.read(backendServiceProvider).checkPriceFairness(id);
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   void dispose() {
@@ -265,7 +288,10 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // --- Badges ---
-                    Row(
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         _badge(
                           context,
@@ -273,7 +299,6 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                           background: isRent ? infoBlue : scheme.primary,
                           foreground: Colors.white,
                         ),
-                        const SizedBox(width: AppSpacing.sm),
                         StatusChip(
                           label: listing.condition == 'new' ? 'New' : 'Used',
                           variant:
@@ -281,12 +306,21 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                                   ? StatusVariant.success
                                   : StatusVariant.neutral,
                         ),
-                        const SizedBox(width: AppSpacing.sm),
                         _badge(
                           context,
                           listing.category.toUpperCase(),
                           background: scheme.surfaceContainerHighest,
                           foreground: scheme.onSurface,
+                        ),
+                        FutureBuilder(
+                          future: _priceFairnessFuture,
+                          builder: (context, snapshot) {
+                            final data = snapshot.data;
+                            if (data == null || data.verdict == 'insufficient_data') {
+                              return const SizedBox.shrink();
+                            }
+                            return _priceFairnessChip(context, data);
+                          },
                         ),
                       ],
                     ),
@@ -454,6 +488,46 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _priceFairnessChip(
+    BuildContext context,
+    ({String verdict, int comparableCount, double? averagePrice, String message}) data,
+  ) {
+    final (icon, background, foreground, label) = switch (data.verdict) {
+      'great_deal' => (Icons.thumb_up, Colors.green, Colors.white, 'Great deal'),
+      'above_average' => (Icons.trending_up, Colors.amber.shade700, Colors.white, 'Above average'),
+      _ => (Icons.check_circle, Colors.blueGrey, Colors.white, 'Fair price'),
+    };
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(data.message))),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: foreground),
+            const SizedBox(width: 4),
+            Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                color: foreground,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
+              ),
+            ),
+          ],
         ),
       ),
     );
