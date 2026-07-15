@@ -187,7 +187,12 @@ async def listing_chat(
             "marketplace's other listings in this conversation. If the student "
             "asks you to find alternatives on UniLink itself, tell them to browse "
             "or search the marketplace instead.\n\n"
-            "Be concise and honest.\n\n"
+            "Formatting: be precise and accurate, not an essay. Prefer short "
+            "point-form answers over long paragraphs. Use a '• ' prefix and a "
+            "line break for each point (plain text only, no markdown "
+            "asterisks/headers). Keep each point to one short line where "
+            "possible. Only write a plain sentence (no bullets) for a very "
+            "short, single-fact answer. Never pad the reply with filler.\n\n"
             f"Recent conversation:\n{history_text}\n\n"
             f"Student's message: {payload.message}"
         )

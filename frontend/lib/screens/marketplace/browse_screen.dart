@@ -60,13 +60,17 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
 
     if (_query.trim().isNotEmpty) {
       try {
-        final ids = await ref.read(backendServiceProvider).semanticSearchListings(_query);
+        final ids = await ref
+            .read(backendServiceProvider)
+            .semanticSearchListings(_query);
         if (ids.isNotEmpty) {
           final results = await listingService.fetchListingsByIds(ids);
           return results.where((l) {
             if (l.sellerId == myId) return false;
             if (category != null && l.category != category) return false;
-            if (listingType != null && l.listingType != listingType) return false;
+            if (listingType != null && l.listingType != listingType) {
+              return false;
+            }
             return true;
           }).toList();
         }
@@ -178,7 +182,8 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
                             },
                           ),
                         IconButton(
-                          tooltip: 'This search understands natural language, powered by AI',
+                          tooltip:
+                              'This search understands natural language, powered by AI',
                           icon: Icon(Icons.auto_awesome, color: scheme.primary),
                           onPressed: () {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -251,7 +256,7 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
           ),
         ),
         SizedBox(
-          height: 40,
+          height: 30,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -286,43 +291,45 @@ class BrowseScreenState extends ConsumerState<BrowseScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 4),
         Expanded(
-          child: RefreshIndicator(
-            onRefresh: _onRefresh,
-            child: AsyncStateView<List<Listing>>(
-              future: _listingsFuture,
-              loadingSkeleton: const GridSkeleton(
-                crossAxisCount: 2,
-                itemCount: 6,
-              ),
-              isEmpty: (listings) => listings.isEmpty,
-              emptyState: EmptyState(
-                icon: Icons.storefront_outlined,
-                title: _query.isEmpty ? 'No listings yet' : 'No results',
-                message:
-                    _query.isEmpty
-                        ? 'Be the first to sell something!'
-                        : 'No results for "$_query"',
-              ),
-              builder: (context, listings) {
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final columns =
-                        constraints.maxWidth >= 900
-                            ? 4
-                            : constraints.maxWidth >= 600
-                            ? 3
-                            : 2;
+          child: Transform.translate(
+            offset: const Offset(0, -15),
+            child: RefreshIndicator(
+              onRefresh: _onRefresh,
+              child: AsyncStateView<List<Listing>>(
+                future: _listingsFuture,
+                loadingSkeleton: const GridSkeleton(
+                  crossAxisCount: 2,
+                  itemCount: 6,
+                ),
+                isEmpty: (listings) => listings.isEmpty,
+                emptyState: EmptyState(
+                  icon: Icons.storefront_outlined,
+                  title: _query.isEmpty ? 'No listings yet' : 'No results',
+                  message:
+                      _query.isEmpty
+                          ? 'Be the first to sell something!'
+                          : 'No results for "$_query"',
+                ),
+                builder: (context, listings) {
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final columns =
+                          constraints.maxWidth >= 900
+                              ? 4
+                              : constraints.maxWidth >= 600
+                              ? 3
+                              : 2;
 
-                    return ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
-                      children: [_buildGrid(listings, columns)],
-                    );
-                  },
-                );
-              },
+                      return ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 1, 16, 96),
+                        children: [_buildGrid(listings, columns)],
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ),
         ),

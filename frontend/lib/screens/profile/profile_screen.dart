@@ -11,14 +11,13 @@ import '../../widgets/app_card.dart';
 import '../../widgets/colored_header.dart';
 import '../../widgets/stamp_mark.dart';
 import '../marketplace/favorites_screen.dart';
-import '../marketplace/my_listings_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../transactions/transactions_list_screen.dart';
 import '../wallet/wallet_screen.dart';
 import 'edit_profile_screen.dart';
 
-/// The signed-in user's profile tab: identity, quick access to My Listings/My
-/// Deals (folded in here since they're no longer top-level shell tabs), a
+/// The signed-in user's profile tab: identity, quick access to My Deals/
+/// Favorites/Wallet (My Listings has its own top-level shell tab now), a
 /// System/Light/Dark theme control, and sign-out.
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -127,16 +126,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: _QuickAction(
-                        icon: Icons.sell_outlined,
-                        label: 'My Listings',
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const MyListingsScreen()),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: _QuickAction(
                         icon: Icons.handshake_outlined,
