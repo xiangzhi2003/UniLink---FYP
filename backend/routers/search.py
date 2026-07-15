@@ -29,7 +29,7 @@ def _owned_listing(listing_id: str, user_id: str) -> dict:
     row = (
         get_service_client()
         .table("listings")
-        .select("id, seller_id, title, description, category")
+        .select("id, seller_id, title, description, category, listing_type")
         .eq("id", listing_id)
         .maybe_single()
         .execute()
@@ -43,6 +43,15 @@ def _owned_listing(listing_id: str, user_id: str) -> dict:
     return row.data
 
 
+def _format_listing_line(s: dict) -> str:
+    """One line describing a listing for an AI prompt — always states
+    sale/rent explicitly (previously omitted, which meant the model had no
+    way to correctly answer questions like "what's available to rent")."""
+    price = f"RM {s['price']}/day" if s.get("listing_type") == "rent" else f"RM {s['price']}"
+    kind = "For rent" if s.get("listing_type") == "rent" else "For sale"
+    return f'- "{s["title"]}" ({price}, {s["category"]}, {kind})'
+
+
 @router.post("/embed-listing", response_model=OkResponse)
 async def embed_listing(
     payload: EmbedListingRequest,
@@ -52,7 +61,11 @@ async def embed_listing(
     Called by the app after a listing is created or updated."""
     listing = _owned_listing(payload.listing_id, user_id)
     embedding_service.upsert_listing(
-        listing["id"], listing["title"], listing["description"], listing["category"]
+        listing["id"],
+        listing["title"],
+        listing["description"],
+        listing["category"],
+        listing["listing_type"],
     )
     return OkResponse()
 
@@ -104,7 +117,7 @@ async def concierge(
             rows = (
                 get_service_client()
                 .table("listings")
-                .select("id, title, price, category")
+                .select("id, title, price, category, listing_type")
                 .in_("id", ids)
                 .eq("status", "active")
                 .execute()
@@ -114,9 +127,7 @@ async def concierge(
             summaries = [by_id[i] for i in ids if i in by_id]
 
         listings_text = (
-            "\n".join(
-                f'- "{s["title"]}" (RM {s["price"]}, {s["category"]})' for s in summaries
-            )
+            "\n".join(_format_listing_line(s) for s in summaries)
             if summaries
             else "(no matching listings found)"
         )
@@ -127,10 +138,14 @@ async def concierge(
         prompt = (
             "You are UniLink's campus marketplace concierge, helping university "
             "students buy and rent items from each other. Be concise and friendly "
-            "(2-3 sentences). Only reference the listings given below — never "
-            "invent items that aren't listed. If nothing matches, say so plainly "
-            "and suggest the student try different words.\n\n"
-            f"Matching listings:\n{listings_text}\n\n"
+            "(2-3 sentences). Never invent items that aren't listed below.\n\n"
+            "IMPORTANT: the listings below were found by a similarity search and "
+            "may include weak or irrelevant matches — use your own judgment and "
+            "only mention the ones that are genuinely relevant to what the "
+            "student actually asked for. If only some are relevant, mention just "
+            "those. If none are truly relevant, say so plainly (don't force a "
+            "connection) and suggest the student try different words.\n\n"
+            f"Candidate listings:\n{listings_text}\n\n"
             f"Recent conversation:\n{history_text}\n\n"
             f"Student's message: {message}"
         )
@@ -228,7 +243,7 @@ async def listing_chat(
             rows = (
                 get_service_client()
                 .table("listings")
-                .select("id, title, price, category")
+                .select("id, title, price, category, listing_type")
                 .in_("id", related_ids)
                 .eq("status", "active")
                 .execute()
@@ -238,9 +253,7 @@ async def listing_chat(
             related_summaries = [by_id[i] for i in related_ids if i in by_id]
 
         related_text = (
-            "\n".join(
-                f'- "{s["title"]}" (RM {s["price"]}, {s["category"]})' for s in related_summaries
-            )
+            "\n".join(_format_listing_line(s) for s in related_summaries)
             if related_summaries
             else "(none found)"
         )
@@ -260,9 +273,12 @@ async def listing_chat(
             "Answer their questions about this item. You may use your own general "
             "knowledge about this type of product (how it's used, tips, safety "
             "notes, typical value) in addition to the listing's own details. Be "
-            "concise and honest. If relevant, you can mention these other similar "
-            "listings already on the marketplace:\n"
-            f"{related_text}\n\n"
+            "concise and honest.\n\n"
+            "The listings below were found by a similarity search and may "
+            "include weak or irrelevant matches — only mention ones that are "
+            "genuinely similar/relevant if the student seems interested in "
+            "alternatives. Don't force a mention if none of them actually fit.\n"
+            f"Candidate similar listings:\n{related_text}\n\n"
             f"Recent conversation:\n{history_text}\n\n"
             f"Student's message: {payload.message}"
         )
