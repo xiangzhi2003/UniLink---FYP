@@ -57,7 +57,10 @@ class _AdminReportsTabState extends ConsumerState<AdminReportsTab> {
     if (report.reportedUserId != null) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => SellerProfileScreen(sellerId: report.reportedUserId!),
+          builder: (_) => SellerProfileScreen(
+            sellerId: report.reportedUserId!,
+            adminView: true,
+          ),
         ),
       );
       return;

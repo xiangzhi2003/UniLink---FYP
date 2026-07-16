@@ -49,6 +49,12 @@ class _AdminShellState extends ConsumerState<AdminShell> {
     };
 
     return Scaffold(
+      // The Listings/Users search+filter fields sit near the top of a
+      // Column that isn't independently scrollable -- letting the body
+      // resize for the keyboard could squeeze it into a RenderFlex
+      // overflow. The keyboard just overlays the bottom instead, which is
+      // fine since nothing critical needs to stay visible while typing.
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Text('UniLink Admin · ${_titles[_tab]}'),
         actions: [

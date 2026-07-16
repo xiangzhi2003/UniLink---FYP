@@ -24,7 +24,13 @@ import 'reply_to_review_screen.dart';
 class SellerProfileScreen extends ConsumerStatefulWidget {
   final String sellerId;
 
-  const SellerProfileScreen({super.key, required this.sellerId});
+  /// True when reached from the admin panel -- carries the same read-only
+  /// intent forward: no "report user" action here (that's what the admin
+  /// is already doing via the Reports tab), and any listing tapped from
+  /// this profile's grid also opens read-only (adminView propagates).
+  final bool adminView;
+
+  const SellerProfileScreen({super.key, required this.sellerId, this.adminView = false});
 
   @override
   ConsumerState<SellerProfileScreen> createState() => _SellerProfileScreenState();
@@ -118,7 +124,7 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
       appBar: AppBar(
         title: const Text('Seller Profile'),
         actions: [
-          if (!isOwnProfile)
+          if (!isOwnProfile && !widget.adminView)
             IconButton(
               tooltip: 'Report user',
               icon: const Icon(Icons.flag_outlined),
@@ -219,7 +225,10 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
                       listing: listing,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => ListingDetailScreen(listing: listing),
+                          builder: (_) => ListingDetailScreen(
+                            listing: listing,
+                            adminView: widget.adminView,
+                          ),
                         ),
                       ),
                     );

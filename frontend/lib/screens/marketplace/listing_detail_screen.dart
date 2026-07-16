@@ -278,11 +278,13 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                         right: 10,
                         child: Row(
                           children: [
-                            FavoriteButton(
-                              listingId: listing.id!,
-                              size: FavoriteButtonSize.large,
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
+                            if (!widget.adminView) ...[
+                              FavoriteButton(
+                                listingId: listing.id!,
+                                size: FavoriteButtonSize.large,
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                            ],
                             _CircleIconButton(
                               icon: Icons.share_outlined,
                               onTap: () => _shareListing(listing),
@@ -401,6 +403,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                                 builder:
                                     (_) => SellerProfileScreen(
                                       sellerId: listing.sellerId,
+                                      adminView: widget.adminView,
                                     ),
                               ),
                             ),
