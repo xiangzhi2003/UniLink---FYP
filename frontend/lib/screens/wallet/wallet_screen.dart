@@ -442,7 +442,8 @@ class _EntryRow extends StatelessWidget {
           entry.listingTitle != null ? 'From late return of ${entry.listingTitle}' : 'Late fee received',
           Icons.schedule_outlined,
         ),
-      'debt_settlement' => ('Debt settled', 'Outstanding late fee paid off', Icons.check_circle_outline),
+      'debt_settlement_charge' => ('Debt settled', 'Outstanding late fee paid off', Icons.check_circle_outline),
+      'debt_settlement_credit' => ('Late fee debt received', 'Buyer settled an overdue late fee', Icons.check_circle_outline),
       _ => (
           entry.listingTitle ?? 'Listing',
           entry.dealType == 'rent' ? 'Rental earning' : 'Sale earning',

@@ -429,7 +429,12 @@ def charge_late_fee(transaction_id: str) -> float:
 
     shortfall = round(fee - charged, 2)
     if shortfall > 0:
-        wallet_service.add_debt(buyer_id, shortfall)
+        # Tracked against this specific transaction (not a lump sum on the
+        # buyer's profile) so settling it later credits the right seller --
+        # see wallet_service.settle_debt.
+        client.table("transactions").update(
+            {"late_fee_owed": shortfall}
+        ).eq("id", transaction_id).execute()
 
     listing_title = txn["listings"]["title"]
     try:

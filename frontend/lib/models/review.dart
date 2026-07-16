@@ -7,6 +7,8 @@ class Review {
   final int rating; // 1-5
   final String? comment;
   final DateTime createdAt;
+  final String? sellerReply;
+  final DateTime? sellerReplyAt;
 
   // Joined display field (not a column on reviews):
   final String? reviewerName;
@@ -20,6 +22,8 @@ class Review {
     required this.rating,
     this.comment,
     required this.createdAt,
+    this.sellerReply,
+    this.sellerReplyAt,
     this.reviewerName,
   });
 
@@ -34,6 +38,10 @@ class Review {
       rating: json['rating'] as int,
       comment: json['comment'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
+      sellerReply: json['seller_reply'] as String?,
+      sellerReplyAt: json['seller_reply_at'] == null
+          ? null
+          : DateTime.parse(json['seller_reply_at'] as String),
       reviewerName: reviewer?['full_name'] as String?,
     );
   }

@@ -24,47 +24,68 @@ def get_balance(user_id: str) -> float:
 
 
 def get_outstanding_debt(user_id: str) -> float:
-    row = (
+    """Sum of unpaid late fees across all of this buyer's transactions.
+    Tracked per-transaction (transactions.late_fee_owed), not as a lump sum,
+    so settling it later can credit the correct seller for each deal."""
+    rows = (
         get_service_client()
-        .table("profiles")
-        .select("outstanding_debt")
-        .eq("id", user_id)
-        .single()
+        .table("transactions")
+        .select("late_fee_owed")
+        .eq("buyer_id", user_id)
+        .gt("late_fee_owed", 0)
         .execute()
         .data
     )
-    return row.get("outstanding_debt") or 0
-
-
-def add_debt(user_id: str, amount: float) -> None:
-    current = get_outstanding_debt(user_id)
-    get_service_client().table("profiles").update(
-        {"outstanding_debt": current + amount}
-    ).eq("id", user_id).execute()
+    return sum(row["late_fee_owed"] for row in rows)
 
 
 def settle_debt(user_id: str) -> float:
-    """Pays down as much outstanding debt as the current wallet balance
-    covers. Returns the amount actually settled."""
-    debt = get_outstanding_debt(user_id)
-    if debt <= 0:
+    """Pays down the buyer's outstanding late fees from their current wallet
+    balance, oldest deal first, crediting each fee's actual seller as it's
+    paid off (a buyer can owe different amounts to different sellers).
+    Returns the total amount actually settled."""
+    client = get_service_client()
+    debts = (
+        client.table("transactions")
+        .select("id, seller_id, late_fee_owed")
+        .eq("buyer_id", user_id)
+        .gt("late_fee_owed", 0)
+        .order("rental_due_date")
+        .execute()
+        .data
+    )
+    if not debts:
         raise ValueError("No outstanding debt")
 
     balance = get_balance(user_id)
-    pay = min(debt, balance)
-    if pay <= 0:
-        raise ValueError("Insufficient wallet balance to settle debt")
+    total_settled = 0.0
+    for txn in debts:
+        if balance <= 0:
+            break
+        pay = min(txn["late_fee_owed"], balance)
+        if pay <= 0:
+            continue
+        client.table("wallet_ledger").insert({
+            "user_id": user_id,
+            "transaction_id": txn["id"],
+            "amount": -pay,
+            "type": "debt_settlement_charge",
+        }).execute()
+        client.table("wallet_ledger").insert({
+            "user_id": txn["seller_id"],
+            "transaction_id": txn["id"],
+            "amount": pay,
+            "type": "debt_settlement_credit",
+        }).execute()
+        client.table("transactions").update(
+            {"late_fee_owed": txn["late_fee_owed"] - pay}
+        ).eq("id", txn["id"]).execute()
+        balance -= pay
+        total_settled += pay
 
-    get_service_client().table("wallet_ledger").insert({
-        "user_id": user_id,
-        "transaction_id": None,
-        "amount": -pay,
-        "type": "debt_settlement",
-    }).execute()
-    get_service_client().table("profiles").update(
-        {"outstanding_debt": debt - pay}
-    ).eq("id", user_id).execute()
-    return pay
+    if total_settled <= 0:
+        raise ValueError("Insufficient wallet balance to settle debt")
+    return total_settled
 
 
 def start_withdrawal(user_id: str, amount: float) -> tuple[str, str]:

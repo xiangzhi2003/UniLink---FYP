@@ -48,6 +48,45 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
     return '${(diff.inDays / 30).floor()} months ago';
   }
 
+  Future<void> _reply(Review review) async {
+    final controller = TextEditingController(text: review.sellerReply ?? '');
+    final reply = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(review.sellerReply == null ? 'Reply to review' : 'Edit reply'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 4,
+          decoration: const InputDecoration(hintText: 'Write a public reply...'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Post'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (reply == null || reply.isEmpty || !mounted) return;
+
+    try {
+      await ref.read(reviewServiceProvider).replyToReview(reviewId: review.id, reply: reply);
+      if (!mounted) return;
+      setState(() {
+        _reviewsFuture = ref.read(reviewServiceProvider).fetchReviewsForSeller(widget.sellerId);
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not post reply: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(profileByIdProvider(widget.sellerId));
@@ -202,6 +241,10 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
 
   Widget _reviewTile(BuildContext context, Review review) {
     final scheme = Theme.of(context).colorScheme;
+    final myId = ref.read(authServiceProvider).currentUser?.id;
+    final isMe = myId != null && myId == review.sellerId;
+    final hasReply = review.sellerReply != null && review.sellerReply!.trim().isNotEmpty;
+
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -230,6 +273,55 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
           if (review.comment != null && review.comment!.trim().isNotEmpty) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(review.comment!),
+          ],
+          if (hasReply) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              margin: const EdgeInsets.only(left: AppSpacing.md),
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.subdirectory_arrow_right, size: 14, color: scheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Text(
+                        "Seller's reply",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                      if (review.sellerReplyAt != null) ...[
+                        const Spacer(),
+                        Text(
+                          _relativeDate(review.sellerReplyAt!),
+                          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(review.sellerReply!, style: const TextStyle(fontSize: 13)),
+                ],
+              ),
+            ),
+          ],
+          if (isMe) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => _reply(review),
+                child: Text(hasReply ? 'Edit reply' : 'Reply'),
+              ),
+            ),
           ],
         ],
       ),

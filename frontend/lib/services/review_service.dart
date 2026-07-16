@@ -49,4 +49,13 @@ class ReviewService {
         .limit(1);
     return (rows as List<dynamic>).isNotEmpty;
   }
+
+  /// Seller posts (or edits) a public reply to a review of them. RLS
+  /// enforces this only succeeds when the caller is that review's seller.
+  Future<void> replyToReview({required String reviewId, required String reply}) async {
+    await supabase.from('reviews').update({
+      'seller_reply': reply.trim(),
+      'seller_reply_at': DateTime.now().toIso8601String(),
+    }).eq('id', reviewId);
+  }
 }
