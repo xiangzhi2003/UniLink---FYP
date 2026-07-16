@@ -8,6 +8,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/transaction.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/review_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../theme/app_fonts.dart';
 import '../../theme/app_tokens.dart';
@@ -15,6 +16,7 @@ import '../../utils/error_messages.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/status_banner.dart';
 import '../../widgets/status_chip.dart';
+import 'leave_review_screen.dart';
 import 'qr_scan_screen.dart';
 
 /// One deal: shows the QR-handshake control appropriate to (my role, current
@@ -118,6 +120,10 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
                   ],
                   const SizedBox(height: AppSpacing.xl),
                   _statusBanner(deal),
+                  if (deal.status == 'completed' && iAmBuyer) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    _reviewSection(context, deal),
+                  ],
                   const SizedBox(height: AppSpacing.lg),
                   _escrowSection(context, deal, iAmBuyer),
                   const SizedBox(height: AppSpacing.sm),
@@ -131,6 +137,49 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
           );
         },
       ),
+    );
+  }
+
+  /// One-way review CTA: only the buyer on a completed deal sees this, and
+  /// only until they've reviewed it once (enforced both here and by the
+  /// `reviews` table's unique constraint on transaction_id).
+  Widget _reviewSection(BuildContext context, TransactionDeal deal) {
+    return FutureBuilder<bool>(
+      future: ref.read(reviewServiceProvider).hasReviewed(deal.id),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const SizedBox.shrink();
+        }
+        if (snapshot.data == true) {
+          return Row(
+            children: [
+              Icon(
+                Icons.check_circle_outline,
+                size: 16,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                "You've reviewed this",
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+            ],
+          );
+        }
+        return SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.star_border),
+            label: const Text('Leave a Review'),
+            onPressed: () async {
+              final submitted = await Navigator.of(context).push<bool>(
+                MaterialPageRoute(builder: (_) => LeaveReviewScreen(deal: deal)),
+              );
+              if (submitted == true) _reload();
+            },
+          ),
+        );
+      },
     );
   }
 
