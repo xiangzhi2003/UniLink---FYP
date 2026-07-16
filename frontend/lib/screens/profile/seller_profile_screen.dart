@@ -13,6 +13,7 @@ import '../../widgets/listing_card.dart';
 import '../../widgets/stamp_mark.dart';
 import '../../widgets/star_rating.dart';
 import '../marketplace/listing_detail_screen.dart';
+import 'reply_to_review_screen.dart';
 
 /// Read-only view of another student's profile: name, university, and their
 /// other active listings. No edit/appearance/sign-out actions — those only
@@ -29,6 +30,7 @@ class SellerProfileScreen extends ConsumerStatefulWidget {
 class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
   late Future<List<Listing>> _listingsFuture;
   late Future<List<Review>> _reviewsFuture;
+  String? _replyingId; // id of the review currently being replied to, if any
 
   @override
   void initState() {
@@ -49,37 +51,31 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
   }
 
   Future<void> _reply(Review review) async {
-    final controller = TextEditingController(text: review.sellerReply ?? '');
-    final reply = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(review.sellerReply == null ? 'Reply to review' : 'Edit reply'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: 4,
-          decoration: const InputDecoration(hintText: 'Write a public reply...'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Post'),
-          ),
-        ],
+    // Pushed as a full screen, not a modal dialog -- an AlertDialog+TextField
+    // combo triggered a real freeze/ANR on tapping "Post" here (see
+    // reply_to_review_screen.dart's doc comment for details).
+    final reply = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => ReplyToReviewScreen(initialText: review.sellerReply),
       ),
     );
-    controller.dispose();
     if (reply == null || reply.isEmpty || !mounted) return;
 
+    // Disable this review's button instead of stacking a second dialog on
+    // top of the first -- rapid nested showDialog/Navigator.pop pairs are a
+    // known trigger for a Flutter framework assertion
+    // ('_dependents.isEmpty') seen while testing this.
+    setState(() => _replyingId = review.id);
     try {
       await ref.read(reviewServiceProvider).replyToReview(reviewId: review.id, reply: reply);
       if (!mounted) return;
       setState(() {
+        _replyingId = null;
         _reviewsFuture = ref.read(reviewServiceProvider).fetchReviewsForSeller(widget.sellerId);
       });
     } catch (e) {
       if (mounted) {
+        setState(() => _replyingId = null);
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Could not post reply: $e')));
@@ -317,10 +313,19 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
             const SizedBox(height: AppSpacing.xs),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () => _reply(review),
-                child: Text(hasReply ? 'Edit reply' : 'Reply'),
-              ),
+              child: _replyingId == review.id
+                  ? const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : TextButton(
+                      onPressed: () => _reply(review),
+                      child: Text(hasReply ? 'Edit reply' : 'Reply'),
+                    ),
             ),
           ],
         ],
