@@ -170,6 +170,14 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
             ),
             AsyncStateView<List<Review>>(
               future: _reviewsFuture,
+              // Without this, the default skeleton renders an unbounded
+              // ListView inside this screen's SingleChildScrollView and
+              // crashes on the very first frame -- same failure mode the
+              // GridSkeleton above already guards against with shrinkWrap.
+              loadingSkeleton: const SizedBox(
+                height: 120,
+                child: Center(child: CircularProgressIndicator()),
+              ),
               isEmpty: (reviews) => reviews.isEmpty,
               emptyState: const EmptyState(
                 icon: Icons.star_border,

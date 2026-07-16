@@ -23,6 +23,50 @@ def get_balance(user_id: str) -> float:
     return sum(row["amount"] for row in rows)
 
 
+def get_outstanding_debt(user_id: str) -> float:
+    row = (
+        get_service_client()
+        .table("profiles")
+        .select("outstanding_debt")
+        .eq("id", user_id)
+        .single()
+        .execute()
+        .data
+    )
+    return row.get("outstanding_debt") or 0
+
+
+def add_debt(user_id: str, amount: float) -> None:
+    current = get_outstanding_debt(user_id)
+    get_service_client().table("profiles").update(
+        {"outstanding_debt": current + amount}
+    ).eq("id", user_id).execute()
+
+
+def settle_debt(user_id: str) -> float:
+    """Pays down as much outstanding debt as the current wallet balance
+    covers. Returns the amount actually settled."""
+    debt = get_outstanding_debt(user_id)
+    if debt <= 0:
+        raise ValueError("No outstanding debt")
+
+    balance = get_balance(user_id)
+    pay = min(debt, balance)
+    if pay <= 0:
+        raise ValueError("Insufficient wallet balance to settle debt")
+
+    get_service_client().table("wallet_ledger").insert({
+        "user_id": user_id,
+        "transaction_id": None,
+        "amount": -pay,
+        "type": "debt_settlement",
+    }).execute()
+    get_service_client().table("profiles").update(
+        {"outstanding_debt": debt - pay}
+    ).eq("id", user_id).execute()
+    return pay
+
+
 def start_withdrawal(user_id: str, amount: float) -> tuple[str, str]:
     """Start a real Stripe Checkout session for a withdrawal — mode='setup'
     so it's a genuine stripe.com page (same "leave the app" rhythm as

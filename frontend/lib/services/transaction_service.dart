@@ -46,6 +46,34 @@ class TransactionService {
     return (rows as List<dynamic>).length;
   }
 
+  /// Completed deals of mine (as buyer) I haven't reviewed yet -- powers a
+  /// second signal on the My Deals badge/History tab nudging buyers to
+  /// leave feedback. Two queries + a client-side set diff since the
+  /// Supabase client SDK has no clean "not in another table" filter; both
+  /// result sets are small per-user so this is cheap.
+  Future<int> unreviewedCompletedCount() async {
+    final userId = supabase.auth.currentSession!.user.id;
+    final completed = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('buyer_id', userId)
+        .eq('status', 'completed');
+    final completedIds = (completed as List<dynamic>)
+        .map((r) => (r as Map<String, dynamic>)['id'] as String)
+        .toSet();
+    if (completedIds.isEmpty) return 0;
+
+    final reviewed = await supabase
+        .from('reviews')
+        .select('transaction_id')
+        .eq('reviewer_id', userId);
+    final reviewedIds = (reviewed as List<dynamic>)
+        .map((r) => (r as Map<String, dynamic>)['transaction_id'] as String)
+        .toSet();
+
+    return completedIds.difference(reviewedIds).length;
+  }
+
   /// Fires whenever any transaction row changes — used to keep the My Deals
   /// badge live without polling. Deliberately unfiltered (the realtime
   /// stream builder can't express "buyer OR seller"); relies on

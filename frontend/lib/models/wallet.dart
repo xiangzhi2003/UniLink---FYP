@@ -33,8 +33,13 @@ class WalletEntry {
 class WalletSummary {
   final double balance;
   final List<WalletEntry> history;
+  final double outstandingDebt;
 
-  const WalletSummary({required this.balance, required this.history});
+  const WalletSummary({
+    required this.balance,
+    required this.history,
+    this.outstandingDebt = 0,
+  });
 
   factory WalletSummary.fromJson(Map<String, dynamic> json) {
     return WalletSummary(
@@ -42,6 +47,7 @@ class WalletSummary {
       history: (json['history'] as List<dynamic>)
           .map((e) => WalletEntry.fromJson(e as Map<String, dynamic>))
           .toList(),
+      outstandingDebt: (json['outstanding_debt'] as num?)?.toDouble() ?? 0,
     );
   }
 }

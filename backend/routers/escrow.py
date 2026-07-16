@@ -10,7 +10,7 @@ from models.escrow import (
     EscrowTransactionRequest,
     EscrowWalletPayRequest,
 )
-from services import escrow_service
+from services import escrow_service, wallet_service
 from services.auth import current_user_id
 from services.supabase_client import get_service_client
 
@@ -43,6 +43,13 @@ async def start(
     is actually held, so tapping Buy/Book and never paying leaves no trace."""
     if user_id == payload.seller_id:
         raise HTTPException(status_code=400, detail="You can't buy your own listing")
+    if payload.type == "rent":
+        debt = wallet_service.get_outstanding_debt(user_id)
+        if debt > 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Settle your RM{debt:.2f} outstanding late fee before renting again",
+            )
 
     try:
         session_id, url = escrow_service.create_checkout_session_for_listing(
@@ -79,6 +86,13 @@ async def pay_with_wallet(
     Stripe redirect, the deal is created already held in one call."""
     if user_id == payload.seller_id:
         raise HTTPException(status_code=400, detail="You can't buy your own listing")
+    if payload.type == "rent":
+        debt = wallet_service.get_outstanding_debt(user_id)
+        if debt > 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Settle your RM{debt:.2f} outstanding late fee before renting again",
+            )
 
     try:
         transaction_id = escrow_service.pay_with_wallet(

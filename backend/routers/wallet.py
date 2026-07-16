@@ -47,7 +47,18 @@ async def summary(user_id: str = Depends(current_user_id)):
         for row in rows
     ]
     balance = sum(row.amount for row in history)
-    return WalletSummaryResponse(balance=balance, history=history)
+    debt = wallet_service.get_outstanding_debt(user_id)
+    return WalletSummaryResponse(balance=balance, history=history, outstanding_debt=debt)
+
+
+@router.post("/settle-debt", response_model=WalletSummaryResponse)
+async def settle_debt(user_id: str = Depends(current_user_id)):
+    """Pay down outstanding late-fee debt from the current wallet balance."""
+    try:
+        wallet_service.settle_debt(user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return await summary(user_id=user_id)
 
 
 @router.post("/withdraw/start", response_model=WalletWithdrawStartResponse)

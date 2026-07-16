@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../models/review.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/notification_provider.dart';
+import '../../providers/review_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../theme/app_tokens.dart';
@@ -10,11 +12,13 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/colored_header.dart';
 import '../../widgets/stamp_mark.dart';
+import '../../widgets/star_rating.dart';
 import '../marketplace/favorites_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../transactions/transactions_list_screen.dart';
 import '../wallet/wallet_screen.dart';
 import 'edit_profile_screen.dart';
+import 'seller_profile_screen.dart';
 
 /// The signed-in user's profile tab: identity, quick access to My Deals/
 /// Favorites/Wallet (My Listings has its own top-level shell tab now), a
@@ -29,6 +33,16 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _signingOut = false;
   String? _error;
+  late final Future<List<Review>> _reviewsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    final myId = ref.read(authServiceProvider).currentUser?.id;
+    _reviewsFuture = myId == null
+        ? Future.value(const [])
+        : ref.read(reviewServiceProvider).fetchReviewsForSeller(myId);
+  }
 
   Future<void> _confirmSignOut() async {
     final confirmed = await showDialog<bool>(
@@ -65,6 +79,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final scheme = Theme.of(context).colorScheme;
     final unreadNotifications = ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
     final heldDeals = ref.watch(heldDealsCountProvider).valueOrNull ?? 0;
+    final unreviewed = ref.watch(unreviewedCompletedCountProvider).valueOrNull ?? 0;
 
     return SingleChildScrollView(
       child: Column(
@@ -97,6 +112,44 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         style: const TextStyle(color: Colors.white70),
                       ),
                     ],
+                    const SizedBox(height: AppSpacing.sm),
+                    InkWell(
+                      onTap: () {
+                        final myId = ref.read(authServiceProvider).currentUser?.id;
+                        if (myId == null) return;
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => SellerProfileScreen(sellerId: myId),
+                          ),
+                        );
+                      },
+                      child: FutureBuilder<List<Review>>(
+                        future: _reviewsFuture,
+                        builder: (context, snapshot) {
+                          final reviews = snapshot.data;
+                          if (reviews == null) return const SizedBox.shrink();
+                          if (reviews.isEmpty) {
+                            return const Text(
+                              'No reviews yet',
+                              style: TextStyle(color: Colors.white70),
+                            );
+                          }
+                          final average = reviews.map((r) => r.rating).reduce((a, b) => a + b) /
+                              reviews.length;
+                          return Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              StarRating(rating: average.round(), size: 16),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${average.toStringAsFixed(1)} (${reviews.length} review${reviews.length == 1 ? '' : 's'})',
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -130,7 +183,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       child: _QuickAction(
                         icon: Icons.handshake_outlined,
                         label: 'My Deals',
-                        badgeCount: heldDeals,
+                        badgeCount: heldDeals + unreviewed,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const TransactionsListScreen()),
                         ),

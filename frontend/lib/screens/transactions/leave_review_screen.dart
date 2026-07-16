@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/transaction.dart';
 import '../../providers/review_provider.dart';
+import '../../providers/transaction_provider.dart';
 import '../../theme/app_tokens.dart';
 import '../../utils/error_messages.dart';
 import '../../widgets/app_button.dart';
@@ -35,7 +36,10 @@ class _LeaveReviewScreenState extends ConsumerState<LeaveReviewScreen> {
             rating: _rating,
             comment: _commentController.text,
           );
-      if (mounted) Navigator.of(context).pop(true);
+      if (mounted) {
+        ref.invalidate(unreviewedCompletedCountProvider);
+        Navigator.of(context).pop(true);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(

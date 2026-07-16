@@ -374,6 +374,70 @@ def capture(transaction_id: str) -> None:
         pass
 
 
+def charge_late_fee(transaction_id: str) -> float:
+    """Charge a late fee for an overdue rental return, deducted from the
+    buyer's wallet and credited to the seller's -- both already-built
+    wallet_ledger, no new Stripe charge. If the buyer's balance can't cover
+    the full fee, charge what's available and track the rest as debt
+    (blocks the buyer from starting new rentals until settled, enforced in
+    routers/escrow.py). Returns the full fee that should have applied (0 if
+    not overdue) so the caller can report it even on a partial charge.
+    """
+    txn = _load_transaction(transaction_id)
+    if txn["type"] != "rent" or txn["status"] != "active" or not txn.get("rental_due_date"):
+        return 0.0
+
+    due = date.fromisoformat(txn["rental_due_date"])
+    days_overdue = (date.today() - due).days
+    if days_overdue <= 0:
+        return 0.0
+
+    rental_days = txn.get("rental_days") or 1
+    amount = txn.get("amount") or txn["listings"]["price"]
+    daily_rate = amount / rental_days
+    fee = round(daily_rate * days_overdue, 2)
+
+    buyer_id = txn["buyer_id"]
+    seller_id = txn["seller_id"]
+    charged = min(fee, max(wallet_service.get_balance(buyer_id), 0))
+
+    client = get_service_client()
+    if charged > 0:
+        try:
+            client.table("wallet_ledger").insert({
+                "user_id": buyer_id,
+                "transaction_id": transaction_id,
+                "amount": -charged,
+                "type": "late_fee_charge",
+            }).execute()
+            client.table("wallet_ledger").insert({
+                "user_id": seller_id,
+                "transaction_id": transaction_id,
+                "amount": charged,
+                "type": "late_fee_credit",
+            }).execute()
+        except Exception:
+            pass  # already charged by an earlier call -- unique index rejects the retry
+
+    shortfall = round(fee - charged, 2)
+    if shortfall > 0:
+        wallet_service.add_debt(buyer_id, shortfall)
+
+    listing_title = txn["listings"]["title"]
+    try:
+        notification_service.create(
+            user_id=buyer_id,
+            type="late_fee_charged",
+            title="Late fee applied",
+            body=f'A late fee of RM {fee:.2f} was applied for the overdue return of "{listing_title}".',
+            transaction_id=transaction_id,
+        )
+    except Exception:
+        pass
+
+    return fee
+
+
 def refund(transaction_id: str) -> None:
     """Release the hold without charging the buyer (deal cancelled before
     pickup). Cancelling a not-yet-captured PaymentIntent frees the held funds

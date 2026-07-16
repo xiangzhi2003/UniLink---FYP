@@ -46,16 +46,17 @@ class TransactionsListScreenState extends ConsumerState<TransactionsListScreen> 
   @override
   Widget build(BuildContext context) {
     final myId = ref.read(authServiceProvider).currentUser?.id;
+    final unreviewed = ref.watch(unreviewedCompletedCountProvider).valueOrNull ?? 0;
 
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('My Deals'),
-          bottom: const TabBar(
+          bottom: TabBar(
             tabs: [
-              Tab(text: 'In Progress'),
-              Tab(text: 'History'),
+              const Tab(text: 'In Progress'),
+              Tab(text: unreviewed > 0 ? 'History ($unreviewed)' : 'History'),
             ],
           ),
         ),

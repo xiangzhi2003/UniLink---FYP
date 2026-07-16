@@ -212,6 +212,12 @@ class BackendService {
     return WalletSummary.fromJson(json);
   }
 
+  /// Pays down outstanding late-fee debt using the current wallet balance.
+  Future<WalletSummary> settleDebt() async {
+    final json = await _post('/wallet/settle-debt', {});
+    return WalletSummary.fromJson(json);
+  }
+
   /// Start a real Stripe Checkout session for a withdrawal (setup mode — no
   /// real charge, but a genuine stripe.com page, same rhythm as deposit).
   Future<({String checkoutUrl, String sessionId})> startWalletWithdrawal(double amount) async {

@@ -14,6 +14,7 @@ class WalletHistoryEntry(BaseModel):
 class WalletSummaryResponse(BaseModel):
     balance: float
     history: list[WalletHistoryEntry]
+    outstanding_debt: float = 0
 
 
 class WalletDepositStartRequest(BaseModel):

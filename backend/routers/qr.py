@@ -113,8 +113,20 @@ async def qr_verify(
         return QrVerifyResponse(status=new_status, phase="pickup", message="Pickup confirmed!")
 
     # Return leg (rentals only) -> completed. Escrow was already captured at
-    # pickup; this just closes out the deal.
+    # pickup; this closes out the deal and charges a late fee if overdue.
+    # charge_late_fee needs status still 'active' to see this as the return
+    # in progress, so it must run before the update below.
+    fee_note = ""
+    try:
+        fee = escrow_service.charge_late_fee(payload.transaction_id)
+        if fee > 0:
+            fee_note = f" A late fee of RM{fee:.2f} was applied."
+    except Exception:
+        pass  # never block the return confirmation over a fee-charging hiccup
+
     client.table("transactions").update(
         {"return_scanned_at": now, "status": "completed", "updated_at": now}
     ).eq("id", payload.transaction_id).execute()
-    return QrVerifyResponse(status="completed", phase="return", message="Return confirmed!")
+    return QrVerifyResponse(
+        status="completed", phase="return", message=f"Return confirmed!{fee_note}"
+    )

@@ -18,3 +18,14 @@ final heldDealsCountProvider = StreamProvider<int>((ref) {
   final svc = ref.watch(transactionServiceProvider);
   return svc.myTransactionsStream().asyncMap((_) => svc.heldDealsCount());
 });
+
+/// Completed deals of mine awaiting a review -- a second signal combined
+/// into the My Deals badge and shown on the History tab. Driven off the
+/// same transactions realtime stream as [heldDealsCountProvider]; submitting
+/// a review doesn't touch the transactions table, so
+/// [LeaveReviewScreen] explicitly invalidates this provider on submit.
+final unreviewedCompletedCountProvider = StreamProvider<int>((ref) {
+  ref.watch(authStateProvider);
+  final svc = ref.watch(transactionServiceProvider);
+  return svc.myTransactionsStream().asyncMap((_) => svc.unreviewedCompletedCount());
+});

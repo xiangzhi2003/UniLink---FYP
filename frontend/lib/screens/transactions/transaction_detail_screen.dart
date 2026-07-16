@@ -127,9 +127,12 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
                   const SizedBox(height: AppSpacing.lg),
                   _escrowSection(context, deal, iAmBuyer),
                   const SizedBox(height: AppSpacing.sm),
-                  // The handover handshake only unlocks once the payment is
-                  // safely held in escrow.
-                  if (deal.escrowStatus == 'held')
+                  // The handover handshake unlocks once payment has been
+                  // made -- 'held' (sale, or a rental awaiting pickup) or
+                  // 'captured' (a rental already paid out at pickup, still
+                  // needing its return leg). _handshakeSection's own check
+                  // hides it once the deal is actually completed/cancelled.
+                  if (deal.escrowStatus == 'held' || deal.escrowStatus == 'captured')
                     _handshakeSection(context, deal, iAmSeller, iAmBuyer),
                 ],
               ),
@@ -206,7 +209,9 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
         ),
       'captured' => (
           'Payment released',
-          '$amount has been released to the seller. Deal complete.',
+          deal.status == 'completed'
+              ? '$amount has been released to the seller. Deal complete.'
+              : '$amount has been released to the seller. Confirm the return below to complete the deal.',
           StatusVariant.success,
           Icons.verified_outlined,
         ),

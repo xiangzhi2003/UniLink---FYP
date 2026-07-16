@@ -191,6 +191,24 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
     }
   }
 
+  Future<void> _settleDebt() async {
+    setState(() => _busy = true);
+    try {
+      final summary = await ref.read(backendServiceProvider).settleDebt();
+      if (!mounted) return;
+      setState(() => _summary = summary);
+      _snack(
+        summary.outstandingDebt > 0
+            ? 'Partial payment applied — RM${summary.outstandingDebt.toStringAsFixed(2)} still owed.'
+            : 'Debt settled — you can rent again.',
+      );
+    } catch (e) {
+      if (mounted) _snack(friendlyErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   void _snack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
@@ -293,6 +311,36 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
                 AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg,
               ),
               children: [
+                if (summary.outstandingDebt > 0) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded,
+                            color: Theme.of(context).colorScheme.error),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            'You owe RM${summary.outstandingDebt.toStringAsFixed(2)} in late '
+                            'fees — settle this to rent again.',
+                            style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        FilledButton(
+                          onPressed: _busy || summary.balance <= 0 ? null : _settleDebt,
+                          child: const Text('Settle Now'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
                 if (summary.history.isEmpty)
                   const Padding(
                     padding: EdgeInsets.only(top: AppSpacing.xxxl),
@@ -384,6 +432,17 @@ class _EntryRow extends StatelessWidget {
     final (title, subtitle, icon) = switch (entry.type) {
       'withdrawal' => ('Withdrawal', 'Cashed out', Icons.arrow_downward_rounded),
       'deposit' => ('Added funds', 'Wallet top-up', Icons.add_rounded),
+      'late_fee_charge' => (
+          'Late fee',
+          entry.listingTitle != null ? 'Late return of ${entry.listingTitle}' : 'Late return fee',
+          Icons.schedule_outlined,
+        ),
+      'late_fee_credit' => (
+          'Late fee received',
+          entry.listingTitle != null ? 'From late return of ${entry.listingTitle}' : 'Late fee received',
+          Icons.schedule_outlined,
+        ),
+      'debt_settlement' => ('Debt settled', 'Outstanding late fee paid off', Icons.check_circle_outline),
       _ => (
           entry.listingTitle ?? 'Listing',
           entry.dealType == 'rent' ? 'Rental earning' : 'Sale earning',
