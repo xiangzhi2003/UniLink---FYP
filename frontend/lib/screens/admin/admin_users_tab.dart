@@ -29,6 +29,7 @@ class AdminUsersTab extends ConsumerStatefulWidget {
 class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
   late Future<List<_AdminUser>> _future;
   bool _busy = false;
+  String _query = '';
 
   @override
   void initState() {
@@ -83,82 +84,192 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
     }
   }
 
+  void _showDetails(_AdminUser user) {
+    final name = user.fullName ?? 'Unnamed';
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(name),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _DetailRow(icon: Icons.email_outlined, label: user.email ?? '—'),
+            _DetailRow(icon: Icons.school_outlined, label: user.university ?? 'No university set'),
+            _DetailRow(
+              icon: Icons.badge_outlined,
+              label: user.role == 'admin' ? 'Administrator' : 'Student',
+            ),
+            _DetailRow(
+              icon: user.suspended ? Icons.block : Icons.check_circle_outline,
+              label: user.suspended ? 'Suspended' : 'Active',
+            ),
+          ],
+        ),
+        actions: [
+          if (user.role != 'admin')
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _setSuspended(user, !user.suspended);
+              },
+              style: !user.suspended
+                  ? TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error)
+                  : null,
+              child: Text(user.suspended ? 'Unsuspend' : 'Suspend'),
+            ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
+  List<_AdminUser> _filter(List<_AdminUser> users) {
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return users;
+    return users.where((u) {
+      return (u.fullName ?? '').toLowerCase().contains(q) ||
+          (u.email ?? '').toLowerCase().contains(q) ||
+          (u.university ?? '').toLowerCase().contains(q);
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return AsyncStateView<List<_AdminUser>>(
-      future: _future,
-      onRetry: _reload,
-      loadingSkeleton: const Center(child: CircularProgressIndicator()),
-      isEmpty: (users) => users.isEmpty,
-      emptyState: const EmptyState(icon: Icons.people_outline, title: 'No users yet'),
-      builder: (context, users) {
-        return RefreshIndicator(
-          onRefresh: () async => _reload(),
-          child: ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            itemCount: users.length,
-            itemBuilder: (context, index) {
-              final user = users[index];
-              final name = user.fullName ?? 'Unnamed';
-              return Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: AppCard(
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: scheme.primary,
-                        child: Text(
-                          name.isNotEmpty ? name[0].toUpperCase() : '?',
-                          style: TextStyle(color: scheme.onPrimary),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 0,
+          ),
+          child: TextField(
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              hintText: 'Search by name, email, or university...',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            onChanged: (value) => setState(() => _query = value),
+          ),
+        ),
+        Expanded(
+          child: AsyncStateView<List<_AdminUser>>(
+            future: _future,
+            onRetry: _reload,
+            loadingSkeleton: const Center(child: CircularProgressIndicator()),
+            isEmpty: (users) => users.isEmpty,
+            emptyState: const EmptyState(icon: Icons.people_outline, title: 'No users yet'),
+            builder: (context, allUsers) {
+              final users = _filter(allUsers);
+              if (users.isEmpty) {
+                return const EmptyState(
+                  icon: Icons.search_off,
+                  title: 'No matches',
+                  message: 'Try a different search term.',
+                );
+              }
+              return RefreshIndicator(
+                onRefresh: () async => _reload(),
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  itemCount: users.length,
+                  itemBuilder: (context, index) {
+                    final user = users[index];
+                    final name = user.fullName ?? 'Unnamed';
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: AppCard(
+                        onTap: () => _showDetails(user),
+                        child: Row(
                           children: [
-                            Text(
-                              name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            CircleAvatar(
+                              backgroundColor: scheme.primary,
+                              child: Text(
+                                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                style: TextStyle(color: scheme.onPrimary),
+                              ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              user.email ?? '',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    user.email ?? '',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                                  ),
+                                  if (user.university != null) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      user.university!,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
+                            const SizedBox(width: AppSpacing.sm),
+                            if (user.role == 'admin')
+                              const StatusChip(label: 'Admin', variant: StatusVariant.info)
+                            else if (user.suspended) ...[
+                              const StatusChip(label: 'Suspended', variant: StatusVariant.warning),
+                              IconButton(
+                                tooltip: 'Unsuspend',
+                                icon: Icon(Icons.lock_open, color: scheme.primary),
+                                onPressed: _busy ? null : () => _setSuspended(user, false),
+                              ),
+                            ] else
+                              IconButton(
+                                tooltip: 'Suspend',
+                                icon: Icon(Icons.block, color: scheme.error),
+                                onPressed: _busy ? null : () => _setSuspended(user, true),
+                              ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.sm),
-                      if (user.role == 'admin')
-                        const StatusChip(label: 'Admin', variant: StatusVariant.info)
-                      else if (user.suspended) ...[
-                        const StatusChip(label: 'Suspended', variant: StatusVariant.warning),
-                        IconButton(
-                          tooltip: 'Unsuspend',
-                          icon: Icon(Icons.lock_open, color: scheme.primary),
-                          onPressed: _busy ? null : () => _setSuspended(user, false),
-                        ),
-                      ] else
-                        IconButton(
-                          tooltip: 'Suspend',
-                          icon: Icon(Icons.block, color: scheme.error),
-                          onPressed: _busy ? null : () => _setSuspended(user, true),
-                        ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               );
             },
           ),
-        );
-      },
+        ),
+      ],
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _DetailRow({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: scheme.onSurfaceVariant),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: Text(label)),
+        ],
+      ),
     );
   }
 }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/transaction_provider.dart';
+import '../../theme/app_theme.dart';
 import '../../theme/app_tokens.dart';
-import '../../widgets/app_card.dart';
 import '../../widgets/async_state_view.dart';
 
 typedef _AdminStats = ({
@@ -40,45 +40,116 @@ class _AdminDashboardTabState extends ConsumerState<AdminDashboardTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+    final gold = isDark ? AppColorsDark.gold : AppColors.gold;
+    final infoBlue = isDark ? AppColorsDark.infoBlue : AppColors.infoBlue;
+
     return AsyncStateView<_AdminStats>(
       future: _future,
       onRetry: _reload,
       loadingSkeleton: const Center(child: CircularProgressIndicator()),
       builder: (context, stats) {
         final cards = [
-          (Icons.people_outline, 'Users', '${stats.users}'),
-          (Icons.storefront_outlined, 'Active listings',
-              '${stats.activeListings} of ${stats.totalListings}'),
-          (Icons.handshake_outlined, 'Deals',
-              '${stats.deals} (${stats.completedDeals} completed)'),
-          (Icons.star_border, 'Reviews', '${stats.reviews}'),
-          (Icons.flag_outlined, 'Open reports', '${stats.openReports}'),
+          (
+            Icons.people_outline,
+            scheme.primary,
+            'Users',
+            '${stats.users}',
+            null,
+          ),
+          (
+            Icons.storefront_outlined,
+            scheme.tertiary,
+            'Active listings',
+            '${stats.activeListings}',
+            'of ${stats.totalListings} total',
+          ),
+          (
+            Icons.handshake_outlined,
+            infoBlue,
+            'Deals',
+            '${stats.deals}',
+            '${stats.completedDeals} completed',
+          ),
+          (
+            Icons.star_border,
+            gold,
+            'Reviews',
+            '${stats.reviews}',
+            null,
+          ),
+          (
+            Icons.flag_outlined,
+            stats.openReports > 0 ? scheme.error : scheme.onSurfaceVariant,
+            'Open reports',
+            '${stats.openReports}',
+            stats.openReports > 0 ? 'needs attention' : 'all clear',
+          ),
         ];
 
         return RefreshIndicator(
           onRefresh: () async => _reload(),
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            children: [
-              for (final (icon, label, value) in cards)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: AppCard(
-                    child: Row(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 900
+                  ? 4
+                  : constraints.maxWidth >= 600
+                      ? 3
+                      : 2;
+              return GridView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisSpacing: AppSpacing.md,
+                  crossAxisSpacing: AppSpacing.md,
+                  childAspectRatio: 1.15,
+                ),
+                itemCount: cards.length,
+                itemBuilder: (context, index) {
+                  final (icon, color, label, value, sublabel) = cards[index];
+                  return Container(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    decoration: BoxDecoration(
+                      color: scheme.surface,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      border: Border.all(color: scheme.outline),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(icon, color: Theme.of(context).colorScheme.primary),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(child: Text(label)),
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.sm),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(icon, color: color, size: 22),
+                        ),
+                        const Spacer(),
                         Text(
                           value,
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 26),
                         ),
+                        const SizedBox(height: 2),
+                        Text(
+                          label,
+                          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+                        ),
+                        if (sublabel != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            sublabel,
+                            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11),
+                          ),
+                        ],
                       ],
                     ),
-                  ),
-                ),
-            ],
+                  );
+                },
+              );
+            },
           ),
         );
       },

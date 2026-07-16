@@ -7,7 +7,9 @@ class Report {
   final String status; // open | resolved
   final DateTime createdAt;
   final String? reporterName;
+  final String? listingId;
   final String? listingTitle; // set when a listing was reported
+  final String? reportedUserId;
   final String? reportedUserName; // set when a user was reported
 
   const Report({
@@ -16,7 +18,9 @@ class Report {
     required this.status,
     required this.createdAt,
     this.reporterName,
+    this.listingId,
     this.listingTitle,
+    this.reportedUserId,
     this.reportedUserName,
   });
 
@@ -27,7 +31,9 @@ class Report {
       status: json['status'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
       reporterName: json['reporter_name'] as String?,
+      listingId: json['listing_id'] as String?,
       listingTitle: json['listing_title'] as String?,
+      reportedUserId: json['reported_user_id'] as String?,
       reportedUserName: json['reported_user_name'] as String?,
     );
   }

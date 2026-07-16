@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/report.dart';
+import '../../providers/listing_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../theme/app_tokens.dart';
 import '../../utils/error_messages.dart';
@@ -8,8 +9,11 @@ import '../../widgets/app_card.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/status_chip.dart';
+import '../marketplace/listing_detail_screen.dart';
+import '../profile/seller_profile_screen.dart';
 
 /// The reports/disputes queue: everything users have flagged, open first.
+/// Tapping a report jumps to the actual reported listing or user profile.
 class AdminReportsTab extends ConsumerStatefulWidget {
   const AdminReportsTab({super.key});
 
@@ -49,8 +53,43 @@ class _AdminReportsTabState extends ConsumerState<AdminReportsTab> {
     }
   }
 
-  String _date(DateTime date) =>
-      '${date.day}/${date.month}/${date.year}';
+  Future<void> _openTarget(Report report) async {
+    if (report.reportedUserId != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SellerProfileScreen(sellerId: report.reportedUserId!),
+        ),
+      );
+      return;
+    }
+    if (report.listingId != null) {
+      try {
+        final listings = await ref
+            .read(listingServiceProvider)
+            .fetchListingsByIds([report.listingId!]);
+        if (!mounted) return;
+        if (listings.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('This listing no longer exists.')),
+          );
+          return;
+        }
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ListingDetailScreen(listing: listings.first),
+          ),
+        );
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(friendlyErrorMessage(e))));
+        }
+      }
+    }
+  }
+
+  String _date(DateTime date) => '${date.day}/${date.month}/${date.year}';
 
   @override
   Widget build(BuildContext context) {
@@ -79,11 +118,13 @@ class _AdminReportsTabState extends ConsumerState<AdminReportsTab> {
                   : report.reportedUserName != null
                       ? 'User: ${report.reportedUserName}'
                       : 'Unknown target';
+              final hasTarget = report.listingId != null || report.reportedUserId != null;
               final isOpen = report.status == 'open';
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: AppCard(
+                  onTap: hasTarget ? () => _openTarget(report) : null,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -97,6 +138,9 @@ class _AdminReportsTabState extends ConsumerState<AdminReportsTab> {
                               style: const TextStyle(fontWeight: FontWeight.w700),
                             ),
                           ),
+                          if (hasTarget)
+                            Icon(Icons.chevron_right, size: 18, color: scheme.onSurfaceVariant),
+                          const SizedBox(width: 4),
                           StatusChip(
                             label: isOpen ? 'Open' : 'Resolved',
                             variant: isOpen ? StatusVariant.warning : StatusVariant.success,

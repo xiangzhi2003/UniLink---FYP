@@ -47,7 +47,9 @@ class AdminReport(BaseModel):
     status: str  # open | resolved
     created_at: str
     reporter_name: str | None = None
+    listing_id: str | None = None
     listing_title: str | None = None  # set when a listing was reported
+    reported_user_id: str | None = None
     reported_user_name: str | None = None  # set when a user was reported
 
 

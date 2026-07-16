@@ -150,7 +150,9 @@ async def all_reports(admin_id: str = Depends(current_admin_id)):
                 status=row["status"],
                 created_at=row["created_at"],
                 reporter_name=(row.get("reporter") or {}).get("full_name"),
+                listing_id=row.get("listing_id"),
                 listing_title=(row.get("listings") or {}).get("title"),
+                reported_user_id=row.get("reported_user_id"),
                 reported_user_name=(row.get("reported") or {}).get("full_name"),
             )
             for row in rows

@@ -173,6 +173,13 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(listing.title, overflow: TextOverflow.ellipsis),
+        actions: [
+          IconButton(
+            tooltip: 'Report listing',
+            icon: const Icon(Icons.flag_outlined),
+            onPressed: () => _reportListing(listing),
+          ),
+        ],
       ),
       body: Center(
         child: ConstrainedBox(
@@ -270,11 +277,6 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                             _CircleIconButton(
                               icon: Icons.share_outlined,
                               onTap: () => _shareListing(listing),
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            _CircleIconButton(
-                              icon: Icons.flag_outlined,
-                              onTap: () => _reportListing(listing),
                             ),
                           ],
                         ),

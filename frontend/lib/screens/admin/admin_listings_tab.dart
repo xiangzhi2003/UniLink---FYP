@@ -9,10 +9,12 @@ import '../../widgets/app_card.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/status_chip.dart';
+import '../marketplace/listing_detail_screen.dart';
 
-/// Moderation view: every listing on the marketplace, any status, with a
-/// remove action. Removal deletes the row AND its Pinecone vector
-/// server-side in one call.
+/// Moderation view: every listing on the marketplace, any status, tappable
+/// through to the real ListingDetailScreen for the full picture (photos,
+/// description, tags, everything) plus a remove action. Removal deletes
+/// the row AND its Pinecone vector server-side in one call.
 class AdminListingsTab extends ConsumerStatefulWidget {
   const AdminListingsTab({super.key});
 
@@ -23,6 +25,7 @@ class AdminListingsTab extends ConsumerStatefulWidget {
 class _AdminListingsTabState extends ConsumerState<AdminListingsTab> {
   late Future<List<Listing>> _future;
   bool _busy = false;
+  String _query = '';
 
   @override
   void initState() {
@@ -72,90 +75,142 @@ class _AdminListingsTabState extends ConsumerState<AdminListingsTab> {
     }
   }
 
+  List<Listing> _filter(List<Listing> listings) {
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return listings;
+    return listings.where((l) {
+      return l.title.toLowerCase().contains(q) ||
+          (l.sellerName ?? '').toLowerCase().contains(q) ||
+          l.category.toLowerCase().contains(q);
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return AsyncStateView<List<Listing>>(
-      future: _future,
-      onRetry: _reload,
-      loadingSkeleton: const Center(child: CircularProgressIndicator()),
-      isEmpty: (listings) => listings.isEmpty,
-      emptyState: const EmptyState(
-        icon: Icons.storefront_outlined,
-        title: 'No listings yet',
-      ),
-      builder: (context, listings) {
-        return RefreshIndicator(
-          onRefresh: () async => _reload(),
-          child: ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            itemCount: listings.length,
-            itemBuilder: (context, index) {
-              final listing = listings[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: AppCard(
-                  child: Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                        child: SizedBox(
-                          width: 48,
-                          height: 48,
-                          child: listing.imageUrls.isEmpty
-                              ? ColoredBox(
-                                  color: scheme.surfaceContainerHighest,
-                                  child: Icon(Icons.image_not_supported_outlined,
-                                      size: 20, color: scheme.onSurfaceVariant),
-                                )
-                              : CachedNetworkImage(
-                                  imageUrl: listing.imageUrls.first,
-                                  fit: BoxFit.cover,
-                                ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 0,
+          ),
+          child: TextField(
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              hintText: 'Search by title, seller, or category...',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            onChanged: (value) => setState(() => _query = value),
+          ),
+        ),
+        Expanded(
+          child: AsyncStateView<List<Listing>>(
+            future: _future,
+            onRetry: _reload,
+            loadingSkeleton: const Center(child: CircularProgressIndicator()),
+            isEmpty: (listings) => listings.isEmpty,
+            emptyState: const EmptyState(
+              icon: Icons.storefront_outlined,
+              title: 'No listings yet',
+            ),
+            builder: (context, allListings) {
+              final listings = _filter(allListings);
+              if (listings.isEmpty) {
+                return const EmptyState(
+                  icon: Icons.search_off,
+                  title: 'No matches',
+                  message: 'Try a different search term.',
+                );
+              }
+              return RefreshIndicator(
+                onRefresh: () async => _reload(),
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  itemCount: listings.length,
+                  itemBuilder: (context, index) {
+                    final listing = listings[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: AppCard(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ListingDetailScreen(listing: listing),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Text(
-                              listing.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                              child: SizedBox(
+                                width: 52,
+                                height: 52,
+                                child: listing.imageUrls.isEmpty
+                                    ? ColoredBox(
+                                        color: scheme.surfaceContainerHighest,
+                                        child: Icon(Icons.image_not_supported_outlined,
+                                            size: 20, color: scheme.onSurfaceVariant),
+                                      )
+                                    : CachedNetworkImage(
+                                        imageUrl: listing.imageUrls.first,
+                                        fit: BoxFit.cover,
+                                      ),
+                              ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${listing.sellerName ?? 'Unknown seller'} · '
-                              'RM ${listing.price.toStringAsFixed(2)}'
-                              '${listing.listingType == 'rent' ? '/day' : ''}',
-                              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    listing.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${listing.sellerName ?? 'Unknown seller'} · '
+                                    'RM ${listing.price.toStringAsFixed(2)}'
+                                    '${listing.listingType == 'rent' ? '/day' : ''}',
+                                    style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Wrap(
+                                    spacing: 4,
+                                    children: [
+                                      StatusChip(
+                                        label: listing.status,
+                                        variant: listing.status == 'active'
+                                            ? StatusVariant.success
+                                            : StatusVariant.neutral,
+                                      ),
+                                      StatusChip(
+                                        label: listing.category,
+                                        variant: StatusVariant.info,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Remove listing',
+                              icon: Icon(Icons.delete_outline, color: scheme.error),
+                              onPressed: _busy ? null : () => _remove(listing),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.sm),
-                      StatusChip(
-                        label: listing.status,
-                        variant: listing.status == 'active'
-                            ? StatusVariant.success
-                            : StatusVariant.neutral,
-                      ),
-                      IconButton(
-                        tooltip: 'Remove listing',
-                        icon: Icon(Icons.delete_outline, color: scheme.error),
-                        onPressed: _busy ? null : () => _remove(listing),
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               );
             },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }
