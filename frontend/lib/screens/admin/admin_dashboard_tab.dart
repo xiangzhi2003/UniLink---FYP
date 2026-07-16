@@ -104,13 +104,13 @@ class _AdminDashboardTabState extends ConsumerState<AdminDashboardTab> {
                   crossAxisCount: columns,
                   mainAxisSpacing: AppSpacing.md,
                   crossAxisSpacing: AppSpacing.md,
-                  childAspectRatio: 1.15,
+                  childAspectRatio: 0.92,
                 ),
                 itemCount: cards.length,
                 itemBuilder: (context, index) {
                   final (icon, color, label, value, sublabel) = cards[index];
                   return Container(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
                       color: scheme.surface,
                       borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -118,6 +118,7 @@ class _AdminDashboardTabState extends ConsumerState<AdminDashboardTab> {
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
                           padding: const EdgeInsets.all(AppSpacing.sm),
@@ -125,25 +126,32 @@ class _AdminDashboardTabState extends ConsumerState<AdminDashboardTab> {
                             color: color.withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(icon, color: color, size: 22),
+                          child: Icon(icon, color: color, size: 20),
                         ),
-                        const Spacer(),
-                        Text(
-                          value,
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 26),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              value,
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 24),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                            ),
+                            if (sublabel != null)
+                              Text(
+                                sublabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 10),
+                              ),
+                          ],
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          label,
-                          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
-                        ),
-                        if (sublabel != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            sublabel,
-                            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11),
-                          ),
-                        ],
                       ],
                     ),
                   );

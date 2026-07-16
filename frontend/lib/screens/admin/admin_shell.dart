@@ -8,12 +8,21 @@ import 'admin_users_tab.dart';
 
 /// The admin's whole app: AuthGate lands here instead of HomeShell when the
 /// signed-in profile has role == 'admin' (granted manually in the database).
-/// Admins moderate; they don't buy/sell, so none of the student shell
-/// appears — which also means sign-out has to live here.
-class AdminShell extends ConsumerWidget {
+/// Bottom nav mirrors the student shell's look (icon + label row) instead
+/// of top tabs, for a consistent feel across both.
+class AdminShell extends ConsumerStatefulWidget {
   const AdminShell({super.key});
 
-  Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
+  @override
+  ConsumerState<AdminShell> createState() => _AdminShellState();
+}
+
+class _AdminShellState extends ConsumerState<AdminShell> {
+  int _tab = 0;
+
+  static const _titles = ['Dashboard', 'Listings', 'Users', 'Reports'];
+
+  Future<void> _confirmSignOut() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -31,35 +40,108 @@ class AdminShell extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return DefaultTabController(
-      length: 4,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('UniLink Admin'),
-          actions: [
-            IconButton(
-              tooltip: 'Sign out',
-              icon: const Icon(Icons.logout),
-              onPressed: () => _confirmSignOut(context, ref),
-            ),
-          ],
-          bottom: const TabBar(
-            isScrollable: true,
-            tabs: [
-              Tab(text: 'Dashboard'),
-              Tab(text: 'Listings'),
-              Tab(text: 'Users'),
-              Tab(text: 'Reports'),
+  Widget build(BuildContext context) {
+    final body = switch (_tab) {
+      0 => const AdminDashboardTab(),
+      1 => const AdminListingsTab(),
+      2 => const AdminUsersTab(),
+      _ => const AdminReportsTab(),
+    };
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('UniLink Admin · ${_titles[_tab]}'),
+        actions: [
+          IconButton(
+            tooltip: 'Sign out',
+            icon: const Icon(Icons.logout),
+            onPressed: _confirmSignOut,
+          ),
+        ],
+      ),
+      body: body,
+      bottomNavigationBar: _AdminBottomNav(
+        selectedIndex: _tab,
+        onSelect: (index) => setState(() => _tab = index),
+      ),
+    );
+  }
+}
+
+class _AdminBottomNav extends StatelessWidget {
+  final int selectedIndex;
+  final ValueChanged<int> onSelect;
+
+  const _AdminBottomNav({required this.selectedIndex, required this.onSelect});
+
+  static const _items = [
+    (Icons.dashboard_outlined, Icons.dashboard, 'Dashboard'),
+    (Icons.storefront_outlined, Icons.storefront, 'Listings'),
+    (Icons.people_outline, Icons.people, 'Users'),
+    (Icons.flag_outlined, Icons.flag, 'Reports'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border(top: BorderSide(color: scheme.outline)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            children: [
+              for (var i = 0; i < _items.length; i++)
+                _NavItem(
+                  icon: _items[i].$1,
+                  selectedIcon: _items[i].$2,
+                  label: _items[i].$3,
+                  selected: selectedIndex == i,
+                  onTap: () => onSelect(i),
+                ),
             ],
           ),
         ),
-        body: const TabBarView(
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = selected ? scheme.primary : scheme.onSurfaceVariant;
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AdminDashboardTab(),
-            AdminListingsTab(),
-            AdminUsersTab(),
-            AdminReportsTab(),
+            Icon(selected ? selectedIcon : icon, color: color, size: 24),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
+            ),
           ],
         ),
       ),

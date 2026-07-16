@@ -24,7 +24,14 @@ import 'listing_chat_screen.dart';
 class ListingDetailScreen extends ConsumerStatefulWidget {
   final Listing listing;
 
-  const ListingDetailScreen({super.key, required this.listing});
+  /// True when opened from the admin panel -- admins only moderate, they
+  /// don't transact, so Buy/Book, Message Seller, Ask AI, and Report are
+  /// all hidden. The seller info card still opens SellerProfileScreen,
+  /// which admins do need (e.g. to suspend someone from what they're
+  /// reviewing).
+  final bool adminView;
+
+  const ListingDetailScreen({super.key, required this.listing, this.adminView = false});
 
   @override
   ConsumerState<ListingDetailScreen> createState() =>
@@ -173,13 +180,15 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(listing.title, overflow: TextOverflow.ellipsis),
-        actions: [
-          IconButton(
-            tooltip: 'Report listing',
-            icon: const Icon(Icons.flag_outlined),
-            onPressed: () => _reportListing(listing),
-          ),
-        ],
+        actions: widget.adminView
+            ? null
+            : [
+                IconButton(
+                  tooltip: 'Report listing',
+                  icon: const Icon(Icons.flag_outlined),
+                  onPressed: () => _reportListing(listing),
+                ),
+              ],
       ),
       body: Center(
         child: ConstrainedBox(
@@ -440,41 +449,43 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                       listing.description,
                       style: const TextStyle(height: 1.5),
                     ),
-                    const SizedBox(height: AppSpacing.xxl),
-                    // --- Actions ---
-                    SizedBox(
-                      width: double.infinity,
-                      child: PrimaryButton(
-                        label:
-                            isActive
-                                ? (isRent ? 'Book' : 'Buy')
-                                : _statusDisplay(listing.status).$1,
-                        icon: isActive ? Icons.shield_outlined : null,
-                        onPressed: isActive ? _startDeal : null,
+                    if (!widget.adminView) ...[
+                      const SizedBox(height: AppSpacing.xxl),
+                      // --- Actions ---
+                      SizedBox(
+                        width: double.infinity,
+                        child: PrimaryButton(
+                          label:
+                              isActive
+                                  ? (isRent ? 'Book' : 'Buy')
+                                  : _statusDisplay(listing.status).$1,
+                          icon: isActive ? Icons.shield_outlined : null,
+                          onPressed: isActive ? _startDeal : null,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: SecondaryButton(
-                        label: 'Message Seller',
-                        icon: Icons.chat_bubble_outline,
-                        onPressed: _messageSeller,
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: SecondaryButton(
+                          label: 'Message Seller',
+                          icon: Icons.chat_bubble_outline,
+                          onPressed: _messageSeller,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: SecondaryButton(
-                        label: 'Ask AI about this item',
-                        icon: Icons.auto_awesome,
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => ListingChatScreen(listing: listing),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: SecondaryButton(
+                          label: 'Ask AI about this item',
+                          icon: Icons.auto_awesome,
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ListingChatScreen(listing: listing),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),

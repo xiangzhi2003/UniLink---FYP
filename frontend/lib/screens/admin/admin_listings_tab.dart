@@ -11,10 +11,13 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/status_chip.dart';
 import '../marketplace/listing_detail_screen.dart';
 
+const _statusFilters = ['All', 'active', 'sold', 'rented', 'unavailable'];
+
 /// Moderation view: every listing on the marketplace, any status, tappable
-/// through to the real ListingDetailScreen for the full picture (photos,
-/// description, tags, everything) plus a remove action. Removal deletes
-/// the row AND its Pinecone vector server-side in one call.
+/// through to the real ListingDetailScreen (opened read-only -- adminView:
+/// true hides Buy/Message/Ask AI/Report, admins only moderate) plus a
+/// remove action. Removal deletes the row AND its Pinecone vector
+/// server-side in one call.
 class AdminListingsTab extends ConsumerStatefulWidget {
   const AdminListingsTab({super.key});
 
@@ -25,12 +28,23 @@ class AdminListingsTab extends ConsumerStatefulWidget {
 class _AdminListingsTabState extends ConsumerState<AdminListingsTab> {
   late Future<List<Listing>> _future;
   bool _busy = false;
+  bool _showFilters = false;
   String _query = '';
+  String _statusFilter = 'All';
+  final _minPriceController = TextEditingController();
+  final _maxPriceController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _future = ref.read(backendServiceProvider).fetchAdminListings();
+  }
+
+  @override
+  void dispose() {
+    _minPriceController.dispose();
+    _maxPriceController.dispose();
+    super.dispose();
   }
 
   void _reload() {
@@ -75,13 +89,35 @@ class _AdminListingsTabState extends ConsumerState<AdminListingsTab> {
     }
   }
 
+  bool get _hasActiveFilters =>
+      _statusFilter != 'All' ||
+      _minPriceController.text.isNotEmpty ||
+      _maxPriceController.text.isNotEmpty;
+
+  void _clearFilters() {
+    setState(() {
+      _statusFilter = 'All';
+      _minPriceController.clear();
+      _maxPriceController.clear();
+    });
+  }
+
   List<Listing> _filter(List<Listing> listings) {
     final q = _query.trim().toLowerCase();
-    if (q.isEmpty) return listings;
+    final min = double.tryParse(_minPriceController.text.trim());
+    final max = double.tryParse(_maxPriceController.text.trim());
+
     return listings.where((l) {
-      return l.title.toLowerCase().contains(q) ||
-          (l.sellerName ?? '').toLowerCase().contains(q) ||
-          l.category.toLowerCase().contains(q);
+      if (q.isNotEmpty) {
+        final matches = l.title.toLowerCase().contains(q) ||
+            (l.sellerName ?? '').toLowerCase().contains(q) ||
+            l.category.toLowerCase().contains(q);
+        if (!matches) return false;
+      }
+      if (_statusFilter != 'All' && l.status != _statusFilter) return false;
+      if (min != null && l.price < min) return false;
+      if (max != null && l.price > max) return false;
+      return true;
     }).toList();
   }
 
@@ -91,19 +127,92 @@ class _AdminListingsTabState extends ConsumerState<AdminListingsTab> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 0,
-          ),
-          child: TextField(
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              hintText: 'Search by title, seller, or category...',
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            onChanged: (value) => setState(() => _query = value),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 0),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search),
+                    hintText: 'Search by title, seller, or category...',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onChanged: (value) => setState(() => _query = value),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              IconButton.filledTonal(
+                tooltip: 'Filters',
+                isSelected: _showFilters || _hasActiveFilters,
+                icon: Badge(
+                  isLabelVisible: _hasActiveFilters,
+                  smallSize: 8,
+                  child: const Icon(Icons.filter_list),
+                ),
+                onPressed: () => setState(() => _showFilters = !_showFilters),
+              ),
+            ],
           ),
         ),
+        if (_showFilters)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('STATUS', style: Theme.of(context).textTheme.labelSmall),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 6,
+                  children: [
+                    for (final status in _statusFilters)
+                      ChoiceChip(
+                        label: Text(status == 'All' ? 'All' : status),
+                        selected: _statusFilter == status,
+                        onSelected: (_) => setState(() => _statusFilter = status),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text('PRICE RANGE (RM)', style: Theme.of(context).textTheme.labelSmall),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _minPriceController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          hintText: 'Min',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: TextField(
+                        controller: _maxPriceController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          hintText: 'Max',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    if (_hasActiveFilters) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      TextButton(onPressed: _clearFilters, child: const Text('Clear')),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
         Expanded(
           child: AsyncStateView<List<Listing>>(
             future: _future,
@@ -120,7 +229,7 @@ class _AdminListingsTabState extends ConsumerState<AdminListingsTab> {
                 return const EmptyState(
                   icon: Icons.search_off,
                   title: 'No matches',
-                  message: 'Try a different search term.',
+                  message: 'Try different search or filter criteria.',
                 );
               }
               return RefreshIndicator(
@@ -136,7 +245,7 @@ class _AdminListingsTabState extends ConsumerState<AdminListingsTab> {
                       child: AppCard(
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => ListingDetailScreen(listing: listing),
+                            builder: (_) => ListingDetailScreen(listing: listing, adminView: true),
                           ),
                         ),
                         child: Row(

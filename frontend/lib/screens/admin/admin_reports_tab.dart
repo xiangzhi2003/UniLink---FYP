@@ -76,7 +76,7 @@ class _AdminReportsTabState extends ConsumerState<AdminReportsTab> {
         }
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => ListingDetailScreen(listing: listings.first),
+            builder: (_) => ListingDetailScreen(listing: listings.first, adminView: true),
           ),
         );
       } catch (e) {
