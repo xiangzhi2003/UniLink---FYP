@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../config/supabase_config.dart';
+import '../models/listing.dart';
+import '../models/report.dart';
 import '../models/wallet.dart';
 
 /// Thin authed client for our FastAPI backend. Every call carries the current
@@ -257,5 +259,87 @@ class BackendService {
       credited: json['credited'] as bool,
       summary: WalletSummary.fromJson({'balance': json['balance'], 'history': json['history']}),
     );
+  }
+
+  // --- Admin panel (every endpoint 403s for non-admin callers) ---
+
+  /// Marketplace-wide counts for the admin dashboard.
+  Future<
+      ({
+        int users,
+        int activeListings,
+        int totalListings,
+        int deals,
+        int completedDeals,
+        int reviews,
+        int openReports,
+      })> fetchAdminStats() async {
+    final json = await _get('/admin/stats');
+    return (
+      users: json['users'] as int,
+      activeListings: json['active_listings'] as int,
+      totalListings: json['total_listings'] as int,
+      deals: json['deals'] as int,
+      completedDeals: json['completed_deals'] as int,
+      reviews: json['reviews'] as int,
+      openReports: json['open_reports'] as int,
+    );
+  }
+
+  /// Every listing regardless of status/owner, newest first.
+  Future<List<Listing>> fetchAdminListings() async {
+    final json = await _get('/admin/listings');
+    return (json['listings'] as List<dynamic>)
+        .map((row) => Listing.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Moderation removal — deletes the listing and its search vector.
+  Future<void> adminRemoveListing(String listingId) async {
+    await _post('/admin/listings/remove', {'listing_id': listingId});
+  }
+
+  /// All users with their role/suspended flags.
+  Future<
+      List<
+          ({
+            String id,
+            String? email,
+            String? fullName,
+            String? university,
+            String role,
+            bool suspended,
+          })>> fetchAdminUsers() async {
+    final json = await _get('/admin/users');
+    return [
+      for (final row in json['users'] as List<dynamic>)
+        (
+          id: row['id'] as String,
+          email: row['email'] as String?,
+          fullName: row['full_name'] as String?,
+          university: row['university'] as String?,
+          role: row['role'] as String? ?? 'student',
+          suspended: row['suspended'] as bool? ?? false,
+        ),
+    ];
+  }
+
+  Future<void> adminSetSuspended(String userId, bool suspended) async {
+    await _post('/admin/users/set-suspended', {
+      'user_id': userId,
+      'suspended': suspended,
+    });
+  }
+
+  /// All user-filed reports, open first.
+  Future<List<Report>> fetchAdminReports() async {
+    final json = await _get('/admin/reports');
+    return (json['reports'] as List<dynamic>)
+        .map((row) => Report.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> adminResolveReport(String reportId) async {
+    await _post('/admin/reports/resolve', {'report_id': reportId});
   }
 }

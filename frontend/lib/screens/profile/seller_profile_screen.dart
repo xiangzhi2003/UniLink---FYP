@@ -4,12 +4,15 @@ import '../../models/listing.dart';
 import '../../models/review.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/listing_provider.dart';
+import '../../providers/report_provider.dart';
 import '../../providers/review_provider.dart';
 import '../../theme/app_tokens.dart';
+import '../../utils/error_messages.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/colored_header.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/listing_card.dart';
+import '../../widgets/report_reason_dialog.dart';
 import '../../widgets/stamp_mark.dart';
 import '../../widgets/star_rating.dart';
 import '../marketplace/listing_detail_screen.dart';
@@ -83,13 +86,46 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
     }
   }
 
+  Future<void> _reportUser() async {
+    final reason = await showReportReasonDialog(context, what: 'user');
+    if (reason == null || !mounted) return;
+    try {
+      await ref
+          .read(reportServiceProvider)
+          .submitReport(reportedUserId: widget.sellerId, reason: reason);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Report submitted — an admin will review it.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(friendlyErrorMessage(e))));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(profileByIdProvider(widget.sellerId));
     final profile = profileAsync.valueOrNull;
+    final isOwnProfile =
+        ref.read(authServiceProvider).currentUser?.id == widget.sellerId;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Seller Profile')),
+      appBar: AppBar(
+        title: const Text('Seller Profile'),
+        actions: [
+          if (!isOwnProfile)
+            IconButton(
+              tooltip: 'Report user',
+              icon: const Icon(Icons.flag_outlined),
+              onPressed: _reportUser,
+            ),
+        ],
+      ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

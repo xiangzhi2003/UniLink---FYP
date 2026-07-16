@@ -33,3 +33,24 @@ async def current_user_id(authorization: str = Header(default="")) -> str:
             detail="Invalid or expired token",
         )
     return response.user.id
+
+
+async def current_admin_id(user_id: str = Depends(current_user_id)) -> str:
+    """FastAPI dependency for admin-only endpoints: on top of verifying
+    identity, checks the caller's profiles.role is 'admin'. Admin status is
+    granted manually in the database (no in-app path), so this lookup is
+    the single gate every /admin route sits behind."""
+    row = (
+        get_service_client()
+        .table("profiles")
+        .select("role")
+        .eq("id", user_id)
+        .maybe_single()
+        .execute()
+    )
+    if not row or not row.data or row.data.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return user_id

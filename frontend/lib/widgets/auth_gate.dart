@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/supabase_config.dart';
 import '../providers/auth_provider.dart';
+import '../screens/admin/admin_shell.dart';
 import '../screens/auth/forgot_password_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/auth/reset_password_screen.dart';
+import '../screens/auth/suspended_screen.dart';
 import '../screens/auth/welcome_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 import '../screens/home/home_shell.dart';
@@ -197,7 +199,12 @@ class _AuthGateState extends ConsumerState<AuthGate> {
         return profileAsync.when(
           loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
           error: (error, _) => Scaffold(body: Center(child: Text(friendlyErrorMessage(error)))),
-          data: (profile) => profile == null ? const EditProfileScreen() : const HomeShell(),
+          data: (profile) {
+            if (profile == null) return const EditProfileScreen();
+            if (profile.suspended) return const SuspendedScreen();
+            if (profile.role == 'admin') return const AdminShell();
+            return const HomeShell();
+          },
         );
       },
     );

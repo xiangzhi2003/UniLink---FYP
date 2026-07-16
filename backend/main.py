@@ -7,7 +7,7 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import escrow, qr, search, wallet
+from routers import admin, escrow, qr, search, wallet
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("unilink")
@@ -28,6 +28,7 @@ app.include_router(qr.router)
 app.include_router(escrow.router)
 app.include_router(search.router)
 app.include_router(wallet.router)
+app.include_router(admin.router)
 
 
 @app.on_event("startup")

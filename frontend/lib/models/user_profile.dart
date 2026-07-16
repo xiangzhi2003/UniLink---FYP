@@ -3,12 +3,16 @@ class UserProfile {
   final String email;
   final String? fullName;
   final String? university;
+  final String role; // student | admin (granted manually in the database)
+  final bool suspended;
 
   const UserProfile({
     required this.id,
     required this.email,
     this.fullName,
     this.university,
+    this.role = 'student',
+    this.suspended = false,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -17,6 +21,8 @@ class UserProfile {
       email: json['email'] as String,
       fullName: json['full_name'] as String?,
       university: json['university'] as String?,
+      role: json['role'] as String? ?? 'student',
+      suspended: json['suspended'] as bool? ?? false,
     );
   }
 

@@ -5,10 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/listing.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/report_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/app_tokens.dart';
+import '../../utils/error_messages.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/favorite_button.dart';
+import '../../widgets/report_reason_dialog.dart';
 import '../../widgets/status_chip.dart';
 import '../chat/chat_detail_screen.dart';
 import '../profile/seller_profile_screen.dart';
@@ -71,6 +74,21 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _reportListing(Listing listing) async {
+    final reason = await showReportReasonDialog(context, what: 'listing');
+    if (reason == null || !mounted) return;
+    try {
+      await ref
+          .read(reportServiceProvider)
+          .submitReport(listingId: listing.id, reason: reason);
+      if (mounted) {
+        _comingSoonSnack('Report submitted — an admin will review it.');
+      }
+    } catch (e) {
+      if (mounted) _comingSoonSnack(friendlyErrorMessage(e));
+    }
   }
 
   Future<void> _shareListing(Listing listing) async {
@@ -252,6 +270,11 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                             _CircleIconButton(
                               icon: Icons.share_outlined,
                               onTap: () => _shareListing(listing),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            _CircleIconButton(
+                              icon: Icons.flag_outlined,
+                              onTap: () => _reportListing(listing),
                             ),
                           ],
                         ),
