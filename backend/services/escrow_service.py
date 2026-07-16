@@ -387,7 +387,11 @@ def charge_late_fee(transaction_id: str) -> float:
     if txn["type"] != "rent" or txn["status"] != "active" or not txn.get("rental_due_date"):
         return 0.0
 
-    due = date.fromisoformat(txn["rental_due_date"])
+    # rental_due_date is stored as a plain date, but if the column ever came
+    # back as a timestamp string (e.g. "2026-07-20T00:00:00+00:00"),
+    # date.fromisoformat() would reject it outright -- slicing to the first
+    # 10 chars ("YYYY-MM-DD") is robust to either shape.
+    due = date.fromisoformat(txn["rental_due_date"][:10])
     days_overdue = (date.today() - due).days
     if days_overdue <= 0:
         return 0.0
@@ -416,8 +420,12 @@ def charge_late_fee(transaction_id: str) -> float:
                 "amount": charged,
                 "type": "late_fee_credit",
             }).execute()
-        except Exception:
-            pass  # already charged by an earlier call -- unique index rejects the retry
+        except Exception as e:
+            # Expected on a retried call (unique index on transaction_id+type
+            # rejects the duplicate) -- but print so a *different* failure
+            # (e.g. a schema mismatch) still shows up in Railway logs instead
+            # of vanishing silently.
+            print(f"charge_late_fee: wallet_ledger insert failed for {transaction_id}: {e}")
 
     shortfall = round(fee - charged, 2)
     if shortfall > 0:

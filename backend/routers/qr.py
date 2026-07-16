@@ -121,8 +121,10 @@ async def qr_verify(
         fee = escrow_service.charge_late_fee(payload.transaction_id)
         if fee > 0:
             fee_note = f" A late fee of RM{fee:.2f} was applied."
-    except Exception:
-        pass  # never block the return confirmation over a fee-charging hiccup
+    except Exception as e:
+        # Never block the return confirmation over a fee-charging hiccup --
+        # but print so it's visible in Railway logs instead of vanishing.
+        print(f"charge_late_fee failed for {payload.transaction_id}: {e}")
 
     client.table("transactions").update(
         {"return_scanned_at": now, "status": "completed", "updated_at": now}
