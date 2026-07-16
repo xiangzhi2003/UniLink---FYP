@@ -30,6 +30,7 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
   late Future<List<_AdminUser>> _future;
   bool _busy = false;
   String _query = '';
+  bool _sortAZ = true;
 
   @override
   void initState() {
@@ -126,12 +127,19 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
 
   List<_AdminUser> _filter(List<_AdminUser> users) {
     final q = _query.trim().toLowerCase();
-    if (q.isEmpty) return users;
-    return users.where((u) {
-      return (u.fullName ?? '').toLowerCase().contains(q) ||
-          (u.email ?? '').toLowerCase().contains(q) ||
-          (u.university ?? '').toLowerCase().contains(q);
-    }).toList();
+    final filtered = q.isEmpty
+        ? users.toList()
+        : users.where((u) {
+            return (u.fullName ?? '').toLowerCase().contains(q) ||
+                (u.email ?? '').toLowerCase().contains(q) ||
+                (u.university ?? '').toLowerCase().contains(q);
+          }).toList();
+
+    filtered.sort((a, b) {
+      final cmp = (a.fullName ?? '').toLowerCase().compareTo((b.fullName ?? '').toLowerCase());
+      return _sortAZ ? cmp : -cmp;
+    });
+    return filtered;
   }
 
   @override
@@ -143,14 +151,26 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 0,
           ),
-          child: TextField(
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              hintText: 'Search by name, email, or university...',
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            onChanged: (value) => setState(() => _query = value),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search),
+                    hintText: 'Search by name, email, or university...',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onChanged: (value) => setState(() => _query = value),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              IconButton.filledTonal(
+                tooltip: _sortAZ ? 'Sorted A → Z' : 'Sorted Z → A',
+                icon: Icon(_sortAZ ? Icons.arrow_downward : Icons.arrow_upward),
+                onPressed: () => setState(() => _sortAZ = !_sortAZ),
+              ),
+            ],
           ),
         ),
         Expanded(

@@ -9,6 +9,7 @@ class AdminStatsResponse(BaseModel):
     completed_deals: int
     reviews: int
     open_reports: int
+    listings_by_category: dict[str, int]
 
 
 class AdminOkResponse(BaseModel):

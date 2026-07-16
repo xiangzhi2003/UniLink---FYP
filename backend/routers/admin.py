@@ -19,6 +19,10 @@ from services.supabase_client import get_service_client
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
+# Kept in sync with Listing.categories on the frontend and _ALLOWED_CATEGORIES
+# in routers/search.py -- listing categories are a fixed, small set.
+_CATEGORIES = ["Textbooks", "Electronics", "Equipment", "Others"]
+
 
 def _count(table: str, **filters) -> int:
     query = get_service_client().table(table).select("id", count="exact")
@@ -39,6 +43,9 @@ async def stats(admin_id: str = Depends(current_admin_id)):
         completed_deals=_count("transactions", status="completed"),
         reviews=_count("reviews"),
         open_reports=_count("reports", status="open"),
+        listings_by_category={
+            category: _count("listings", category=category) for category in _CATEGORIES
+        },
     )
 
 

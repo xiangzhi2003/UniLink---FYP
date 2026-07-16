@@ -273,6 +273,7 @@ class BackendService {
         int completedDeals,
         int reviews,
         int openReports,
+        Map<String, int> listingsByCategory,
       })> fetchAdminStats() async {
     final json = await _get('/admin/stats');
     return (
@@ -283,6 +284,8 @@ class BackendService {
       completedDeals: json['completed_deals'] as int,
       reviews: json['reviews'] as int,
       openReports: json['open_reports'] as int,
+      listingsByCategory: (json['listings_by_category'] as Map<String, dynamic>)
+          .map((key, value) => MapEntry(key, value as int)),
     );
   }
 

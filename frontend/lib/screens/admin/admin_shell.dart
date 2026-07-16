@@ -42,7 +42,7 @@ class _AdminShellState extends ConsumerState<AdminShell> {
   @override
   Widget build(BuildContext context) {
     final body = switch (_tab) {
-      0 => const AdminDashboardTab(),
+      0 => AdminDashboardTab(onNavigateToTab: (index) => setState(() => _tab = index)),
       1 => const AdminListingsTab(),
       2 => const AdminUsersTab(),
       _ => const AdminReportsTab(),
