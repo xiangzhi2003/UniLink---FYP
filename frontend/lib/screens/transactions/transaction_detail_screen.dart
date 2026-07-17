@@ -124,10 +124,6 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
                     const SizedBox(height: AppSpacing.lg),
                     _reviewSection(context, deal),
                   ],
-                  if (deal.status == 'active' && deal.type == 'rent' && iAmBuyer) ...[
-                    const SizedBox(height: AppSpacing.lg),
-                    _extendRentalSection(context, deal),
-                  ],
                   const SizedBox(height: AppSpacing.lg),
                   _escrowSection(context, deal, iAmBuyer),
                   const SizedBox(height: AppSpacing.sm),
@@ -188,105 +184,6 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
         );
       },
     );
-  }
-
-  /// Lets the buyer pay to push the due date forward instead of returning
-  /// or risking a late fee -- shown for the whole active rental period, not
-  /// just once overdue (so it's a preventive option too). Preset day-count
-  /// chips instead of a text field, same reasoning as everywhere else in
-  /// this app that avoids a TextField inside a modal dialog.
-  Widget _extendRentalSection(BuildContext context, TransactionDeal deal) {
-    final scheme = Theme.of(context).colorScheme;
-    final due = deal.rentalDueDate;
-    final overdue = due != null && DateTime.now().difference(due).inDays > 0;
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: overdue ? scheme.errorContainer : scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                overdue ? Icons.warning_amber_rounded : Icons.event_available_outlined,
-                size: 18,
-                color: overdue ? scheme.error : scheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                overdue ? 'This rental is overdue' : 'Need more time?',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: overdue ? scheme.onErrorContainer : scheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            overdue
-                ? 'Return it or extend below — a late fee applies for each day overdue.'
-                : 'Extend your rental instead of returning late.',
-            style: TextStyle(
-              color: overdue ? scheme.onErrorContainer : scheme.onSurfaceVariant,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final days in [1, 3, 7])
-                OutlinedButton(
-                  onPressed: _busy ? null : () => _extendRental(deal, days),
-                  child: Text('+$days day${days == 1 ? '' : 's'}'),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _extendRental(TransactionDeal deal, int days) async {
-    final chargedAmount = deal.amount ?? deal.listingPrice;
-    final rentalDays = deal.rentalDays ?? 1;
-    final dailyRate = (chargedAmount ?? 0) / rentalDays;
-    final cost = dailyRate * days;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Extend rental?'),
-        content: Text(
-          'Extend by $days day${days == 1 ? '' : 's'} for RM${cost.toStringAsFixed(2)}, '
-          'charged from your wallet balance.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Extend'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _busy = true);
-    try {
-      await ref.read(backendServiceProvider).extendRental(deal.id, days);
-      if (mounted) _snack('Rental extended by $days day${days == 1 ? '' : 's'}.');
-    } catch (e) {
-      if (mounted) _snack(friendlyErrorMessage(e));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-    if (mounted) _reload();
   }
 
   Widget _escrowSection(BuildContext context, TransactionDeal deal, bool iAmBuyer) {

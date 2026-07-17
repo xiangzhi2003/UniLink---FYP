@@ -43,9 +43,8 @@ def check_due_today_rentals() -> None:
                 type="rental_due_today",
                 title="Rental due today",
                 body=(
-                    f'"{listing_title}" is due back today. Return it or extend '
-                    f"your rental — a late fee of RM{daily_rate:.2f}/day applies "
-                    f"if it's not returned by end of day."
+                    f'"{listing_title}" is due back today — a late fee of '
+                    f"RM{daily_rate:.2f}/day applies if it's not returned by end of day."
                 ),
                 transaction_id=txn["id"],
             )
@@ -60,9 +59,9 @@ def check_due_today_rentals() -> None:
                     html_body=(
                         f"<p>Hi {buyer.get('full_name') or 'there'},</p>"
                         f'<p>Your rental of "{listing_title}" is due back today.</p>'
-                        f"<p>Please return it or extend your rental in the app — "
-                        f"if it isn't returned by the end of today, a late fee of "
-                        f"RM{daily_rate:.2f} will be charged for each day it's overdue.</p>"
+                        f"<p>Please return it — if it isn't returned by the end of "
+                        f"today, a late fee of RM{daily_rate:.2f} will be charged "
+                        f"for each day it's overdue.</p>"
                     ),
                 )
             except Exception:
