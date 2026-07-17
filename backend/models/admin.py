@@ -76,7 +76,3 @@ class CreateKnowledgeDocRequest(BaseModel):
 
 class DeleteKnowledgeDocRequest(BaseModel):
     doc_id: str
-
-
-class TriggerRentalReminderResponse(BaseModel):
-    reminders_sent: int
