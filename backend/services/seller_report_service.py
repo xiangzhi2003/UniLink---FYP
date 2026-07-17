@@ -31,7 +31,7 @@ def _period_bounds(period: str, today: date) -> tuple[date, date, date, date]:
 def _stats_for(client, seller_id: str, start: date, end: date) -> dict:
     rows = (
         client.table("transactions")
-        .select("type, amount, listings(category)")
+        .select("type, amount, listings(title, category)")
         .eq("seller_id", seller_id)
         .eq("status", "completed")
         .gte("created_at", start.isoformat())
@@ -41,20 +41,43 @@ def _stats_for(client, seller_id: str, start: date, end: date) -> dict:
     )
     sale_count = sum(1 for r in rows if r["type"] == "sale")
     rent_count = sum(1 for r in rows if r["type"] == "rent")
-    earnings = sum(r.get("amount") or 0 for r in rows)
+    sale_earnings = sum(r.get("amount") or 0 for r in rows if r["type"] == "sale")
+    rent_earnings = sum(r.get("amount") or 0 for r in rows if r["type"] == "rent")
+    earnings = sale_earnings + rent_earnings
 
-    categories: dict[str, int] = {}
+    categories: dict[str, dict] = {}
+    listings: dict[str, dict] = {}
     for r in rows:
-        cat = (r.get("listings") or {}).get("category") or "Others"
-        categories[cat] = categories.get(cat, 0) + 1
-    top_category = max(categories, key=categories.get) if categories else None
+        listing = r.get("listings") or {}
+        cat = listing.get("category") or "Others"
+        cat_stats = categories.setdefault(cat, {"count": 0, "earnings": 0.0})
+        cat_stats["count"] += 1
+        cat_stats["earnings"] += r.get("amount") or 0
 
+        title = listing.get("title") or "Unknown item"
+        item_stats = listings.setdefault(title, {"count": 0, "earnings": 0.0})
+        item_stats["count"] += 1
+        item_stats["earnings"] += r.get("amount") or 0
+
+    top_category = max(categories, key=lambda c: categories[c]["count"]) if categories else None
+    top_listing = (
+        max(listings, key=lambda t: listings[t]["earnings"]) if listings else None
+    )
+
+    deal_count = sale_count + rent_count
     return {
-        "deal_count": sale_count + rent_count,
+        "deal_count": deal_count,
         "sale_count": sale_count,
         "rent_count": rent_count,
         "earnings": round(earnings, 2),
+        "sale_earnings": round(sale_earnings, 2),
+        "rent_earnings": round(rent_earnings, 2),
+        "avg_deal_value": round(earnings / deal_count, 2) if deal_count else 0,
+        "categories": categories,
         "top_category": top_category,
+        "top_listing": top_listing,
+        "top_listing_earnings": round(listings[top_listing]["earnings"], 2) if top_listing else None,
+        "top_listing_count": listings[top_listing]["count"] if top_listing else None,
     }
 
 
@@ -76,26 +99,65 @@ def generate_seller_report(user_id: str, period: str) -> dict:
         earnings_change = round(
             (current["earnings"] - previous["earnings"]) / previous["earnings"] * 100
         )
+    deal_count_change = current["deal_count"] - previous["deal_count"]
+
+    category_lines = (
+        ", ".join(
+            f"{cat} ({stats['count']} deal{'s' if stats['count'] != 1 else ''}, "
+            f"RM{stats['earnings']:.2f})"
+            for cat, stats in sorted(
+                current["categories"].items(), key=lambda kv: -kv[1]["earnings"]
+            )
+        )
+        if current["categories"]
+        else "none"
+    )
+    prev_category_lines = (
+        ", ".join(
+            f"{cat} ({stats['count']})"
+            for cat, stats in sorted(
+                previous["categories"].items(), key=lambda kv: -kv[1]["count"]
+            )
+        )
+        if previous["categories"]
+        else "none"
+    )
 
     prompt = (
-        "You are writing a short, encouraging performance summary for a "
+        "You are writing an encouraging, insightful performance summary for a "
         "student seller on UniLink, a campus marketplace app. Use ONLY the "
         "numbers given below -- do not invent, estimate, or assume anything "
-        "not explicitly stated.\n\n"
+        "not explicitly stated. When you mention a category or item, use its "
+        "exact name from the data below.\n\n"
         f"Period: this {period}\n"
         f"Completed deals: {current['deal_count']} "
         f"({current['sale_count']} sales, {current['rent_count']} rentals)\n"
-        f"Total earnings: RM{current['earnings']:.2f}\n"
-        f"Top category: {current['top_category'] or 'none'}\n"
-        f"Previous {period}'s earnings: RM{previous['earnings']:.2f}\n"
+        f"Total earnings: RM{current['earnings']:.2f} "
+        f"(RM{current['sale_earnings']:.2f} from sales, RM{current['rent_earnings']:.2f} from rentals)\n"
+        f"Average earnings per deal: RM{current['avg_deal_value']:.2f}\n"
+        f"Earnings by category, highest first: {category_lines}\n"
         + (
-            f"Change vs previous {period}: {earnings_change:+d}%\n"
+            f"Best-earning item: \"{current['top_listing']}\" — "
+            f"{current['top_listing_count']} deal(s), RM{current['top_listing_earnings']:.2f} total\n"
+            if current["top_listing"]
+            else ""
+        )
+        + f"Previous {period} -- deals: {previous['deal_count']}, earnings: RM{previous['earnings']:.2f}, "
+        f"categories: {prev_category_lines}\n"
+        f"Change in deal count vs previous {period}: {deal_count_change:+d}\n"
+        + (
+            f"Change in earnings vs previous {period}: {earnings_change:+d}%\n"
             if earnings_change is not None
             else ""
         )
-        + "\nWrite 2-4 short sentences: summarize the performance, note the "
-        "trend if there's a meaningful change, and end with one brief "
-        "encouraging or practical tip. Plain text, no markdown, no bullet points."
+        + "\nWrite 5-7 sentences covering: (1) an overall summary of this "
+        "period's performance, (2) how it compares to the previous period by "
+        "name (deal count and earnings trend), (3) which specific category "
+        "earned the most and how it compares to the others by name, (4) a "
+        "callout of the best-earning item by name if one is given, and (5) "
+        "one concrete, practical suggestion for next period grounded in the "
+        "numbers above (e.g. lean into the top category, or diversify away "
+        "from a single category). Plain text, no markdown, no bullet points."
     )
     try:
         narrative = generation_service.generate_text(prompt)

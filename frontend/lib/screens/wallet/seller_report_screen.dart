@@ -82,7 +82,7 @@ class _SellerReportScreenState extends ConsumerState<SellerReportScreen> {
                         physics: const NeverScrollableScrollPhysics(),
                         mainAxisSpacing: AppSpacing.md,
                         crossAxisSpacing: AppSpacing.md,
-                        childAspectRatio: 1.5,
+                        childAspectRatio: 1.15,
                         children: [
                           _statCard(
                             context,
@@ -175,6 +175,8 @@ class _SellerReportScreenState extends ConsumerState<SellerReportScreen> {
               if (sublabel != null)
                 Text(
                   sublabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: sublabelColor ?? scheme.onSurfaceVariant, fontSize: 10),
                 ),
             ],
