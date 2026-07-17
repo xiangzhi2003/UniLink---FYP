@@ -16,8 +16,9 @@ from models.admin import (
     RemoveListingRequest,
     ResolveReportRequest,
     SetSuspendedRequest,
+    TriggerRentalReminderResponse,
 )
-from services import embedding_service
+from services import embedding_service, rental_reminder_service
 from services.auth import current_admin_id
 from services.supabase_client import get_service_client
 
@@ -239,3 +240,12 @@ async def delete_knowledge_doc(
     except Exception:
         pass
     return AdminOkResponse()
+
+
+@router.post("/trigger-rental-reminder", response_model=TriggerRentalReminderResponse)
+async def trigger_rental_reminder(admin_id: str = Depends(current_admin_id)):
+    """Manually fires the daily due-today rental reminder check (normally
+    runs on its own once a day via main.py's scheduler) -- lets an admin
+    test/demo the email + notification flow without waiting for 09:00."""
+    sent = rental_reminder_service.check_due_today_rentals()
+    return TriggerRentalReminderResponse(reminders_sent=sent)

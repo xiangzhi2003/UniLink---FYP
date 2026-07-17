@@ -4,7 +4,7 @@ from services import email_service, notification_service
 from services.supabase_client import get_service_client
 
 
-def check_due_today_rentals() -> None:
+def check_due_today_rentals() -> int:
     """Runs once daily (see main.py's scheduler). Finds active rentals due
     back TODAY (not yet overdue) that haven't been reminded today, and sends
     a single in-app notification + email nudging the buyer to return it,
@@ -12,7 +12,9 @@ def check_due_today_rentals() -> None:
     last_overdue_notified_at so a server restart mid-day can't double-send --
     this is the buyer's only reminder; nothing fires again after today even
     if the item is never returned (the late fee itself is still charged via
-    the existing return-scan logic, independent of this reminder)."""
+    the existing return-scan logic, independent of this reminder). Returns
+    how many reminders were sent (used by the admin manual-trigger endpoint
+    to confirm something actually happened)."""
     client = get_service_client()
     today = date.today()
     rows = (
@@ -28,6 +30,7 @@ def check_due_today_rentals() -> None:
         .data
     )
 
+    sent = 0
     for txn in rows:
         if txn.get("last_overdue_notified_at") == today.isoformat():
             continue
@@ -70,3 +73,6 @@ def check_due_today_rentals() -> None:
         client.table("transactions").update(
             {"last_overdue_notified_at": today.isoformat()}
         ).eq("id", txn["id"]).execute()
+        sent += 1
+
+    return sent
