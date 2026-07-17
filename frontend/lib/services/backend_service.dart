@@ -378,6 +378,7 @@ class BackendService {
         String? topCategory,
         int? earningsChangePercent,
         List<({String category, int count, double earnings})> categoryBreakdown,
+        List<({String label, double earnings})> trend,
         String narrative,
       })> fetchSellerReport(String period) async {
     final json = await _get('/reports/seller-summary?period=$period');
@@ -388,6 +389,12 @@ class BackendService {
               earnings: (c['earnings'] as num).toDouble(),
             ))
         .toList();
+    final trend = (json['trend'] as List? ?? [])
+        .map((p) => (
+              label: p['label'] as String,
+              earnings: (p['earnings'] as num).toDouble(),
+            ))
+        .toList();
     return (
       dealCount: json['deal_count'] as int,
       saleCount: json['sale_count'] as int,
@@ -396,6 +403,7 @@ class BackendService {
       topCategory: json['top_category'] as String?,
       earningsChangePercent: json['earnings_change_percent'] as int?,
       categoryBreakdown: breakdown,
+      trend: trend,
       narrative: json['narrative'] as String,
     );
   }

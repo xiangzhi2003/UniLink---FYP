@@ -13,6 +13,7 @@ typedef _SellerReport = ({
   String? topCategory,
   int? earningsChangePercent,
   List<({String category, int count, double earnings})> categoryBreakdown,
+  List<({String label, double earnings})> trend,
   String narrative,
 });
 
@@ -107,14 +108,12 @@ class _SellerReportScreenState extends ConsumerState<SellerReportScreen> {
                                     ? scheme.tertiary
                                     : scheme.error),
                           ),
-                          _statCard(
-                            context,
-                            icon: Icons.category_outlined,
-                            label: 'Top category',
-                            value: report.topCategory ?? '—',
-                          ),
                         ],
                       ),
+                      if (report.trend.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.lg),
+                        _trendChart(context, report.trend),
+                      ],
                       if (report.categoryBreakdown.isNotEmpty) ...[
                         const SizedBox(height: AppSpacing.lg),
                         _categoryChart(context, report.categoryBreakdown),
@@ -146,6 +145,63 @@ class _SellerReportScreenState extends ConsumerState<SellerReportScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// A simple line chart of earnings over time this period -- daily points
+  /// for the month view, monthly points for the year view. Custom-painted
+  /// (no charting package needed for one line chart).
+  Widget _trendChart(BuildContext context, List<({String label, double earnings})> trend) {
+    final scheme = Theme.of(context).colorScheme;
+    final values = trend.map((p) => p.earnings).toList();
+
+    // Showing every label would be unreadable for a 28-31 point month view --
+    // thin them out to roughly 6 evenly spaced labels (always including the
+    // last point) while the year view's <=12 labels show in full.
+    final labelStep = (trend.length / 6).ceil().clamp(1, trend.length);
+    final labels = [
+      for (var i = 0; i < trend.length; i++)
+        (i % labelStep == 0 || i == trend.length - 1) ? trend[i].label : '',
+    ];
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.show_chart_rounded, size: 18, color: scheme.primary),
+              const SizedBox(width: 6),
+              const Text('Earnings Trend', style: TextStyle(fontWeight: FontWeight.w700)),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            height: 140,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: _LineChartPainter(
+                values: values,
+                lineColor: scheme.primary,
+                gridColor: scheme.outlineVariant,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              for (final label in labels)
+                Expanded(
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 9, color: scheme.onSurfaceVariant),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -269,4 +325,66 @@ class _SellerReportScreenState extends ConsumerState<SellerReportScreen> {
       ),
     );
   }
+}
+
+class _LineChartPainter extends CustomPainter {
+  final List<double> values;
+  final Color lineColor;
+  final Color gridColor;
+
+  _LineChartPainter({required this.values, required this.lineColor, required this.gridColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (values.isEmpty) return;
+    final maxY = values.reduce((a, b) => a > b ? a : b);
+    final safeMax = maxY <= 0 ? 1.0 : maxY;
+    final n = values.length;
+
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+    for (var i = 0; i <= 2; i++) {
+      final y = size.height * i / 2;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    final points = <Offset>[
+      for (var i = 0; i < n; i++)
+        Offset(
+          n > 1 ? size.width * i / (n - 1) : size.width / 2,
+          size.height - (values[i] / safeMax) * size.height,
+        ),
+    ];
+
+    final linePath = Path()..moveTo(points.first.dx, points.first.dy);
+    for (final p in points.skip(1)) {
+      linePath.lineTo(p.dx, p.dy);
+    }
+
+    final fillPath = Path.from(linePath)
+      ..lineTo(points.last.dx, size.height)
+      ..lineTo(points.first.dx, size.height)
+      ..close();
+    canvas.drawPath(fillPath, Paint()..color = lineColor.withValues(alpha: 0.12));
+
+    canvas.drawPath(
+      linePath,
+      Paint()
+        ..color = lineColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+
+    final dotPaint = Paint()..color = lineColor;
+    for (final p in points) {
+      canvas.drawCircle(p, 2.5, dotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _LineChartPainter oldDelegate) =>
+      oldDelegate.values != values || oldDelegate.lineColor != lineColor;
 }

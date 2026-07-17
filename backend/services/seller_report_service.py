@@ -1,3 +1,4 @@
+import calendar
 from datetime import date
 
 from services import generation_service
@@ -81,6 +82,45 @@ def _stats_for(client, seller_id: str, start: date, end: date) -> dict:
     }
 
 
+def _trend_for(client, seller_id: str, start: date, end: date, period: str, today: date) -> list[dict]:
+    """Earnings time series for the current period only -- daily points for
+    'month' (up to today, since the rest of the month hasn't happened yet),
+    monthly points for 'year' (up to the current month). Powers the line
+    chart; deliberately separate from _stats_for since that aggregates by
+    category/listing, not by time bucket."""
+    rows = (
+        client.table("transactions")
+        .select("amount, created_at")
+        .eq("seller_id", seller_id)
+        .eq("status", "completed")
+        .gte("created_at", start.isoformat())
+        .lt("created_at", end.isoformat())
+        .execute()
+        .data
+    )
+
+    if period == "year":
+        buckets = {m: 0.0 for m in range(1, today.month + 1)}
+        for r in rows:
+            month = int(r["created_at"][5:7])
+            if month in buckets:
+                buckets[month] += r.get("amount") or 0
+        return [
+            {"label": calendar.month_abbr[m], "earnings": round(buckets[m], 2)}
+            for m in sorted(buckets)
+        ]
+
+    last_day = today.day if today.year == start.year and today.month == start.month else (
+        calendar.monthrange(start.year, start.month)[1]
+    )
+    buckets = {d: 0.0 for d in range(1, last_day + 1)}
+    for r in rows:
+        day = int(r["created_at"][8:10])
+        if day in buckets:
+            buckets[day] += r.get("amount") or 0
+    return [{"label": str(d), "earnings": round(buckets[d], 2)} for d in sorted(buckets)]
+
+
 def generate_seller_report(user_id: str, period: str) -> dict:
     """Computes real stats for the current + previous period from
     `transactions` (deterministic, always correct), then asks Gemini to
@@ -93,6 +133,7 @@ def generate_seller_report(user_id: str, period: str) -> dict:
 
     current = _stats_for(client, user_id, current_start, current_end)
     previous = _stats_for(client, user_id, previous_start, previous_end)
+    trend = _trend_for(client, user_id, current_start, current_end, period, today)
 
     has_history = previous["deal_count"] > 0
     earnings_change = None
@@ -224,5 +265,6 @@ def generate_seller_report(user_id: str, period: str) -> dict:
         "top_category": current["top_category"],
         "earnings_change_percent": earnings_change,
         "category_breakdown": category_breakdown,
+        "trend": trend,
         "narrative": narrative,
     }
