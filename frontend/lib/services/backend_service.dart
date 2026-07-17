@@ -365,4 +365,39 @@ class BackendService {
   Future<void> deleteKnowledgeDoc(String docId) async {
     await _post('/admin/knowledge/delete', {'doc_id': docId});
   }
+
+  /// Buyer pays to push a rental's due date forward instead of returning
+  /// or risking a late fee. Returns the new due date (ISO string).
+  Future<String> extendRental(String transactionId, int additionalDays) async {
+    final json = await _post('/escrow/extend-rental', {
+      'transaction_id': transactionId,
+      'additional_days': additionalDays,
+    });
+    return json['new_due_date'] as String;
+  }
+
+  /// A seller's own monthly/yearly performance report -- real stats (always
+  /// factually correct) plus an AI narrative that's only ever allowed to
+  /// describe those same numbers, never invent new ones.
+  Future<
+      ({
+        int dealCount,
+        int saleCount,
+        int rentCount,
+        double earnings,
+        String? topCategory,
+        int? earningsChangePercent,
+        String narrative,
+      })> fetchSellerReport(String period) async {
+    final json = await _get('/reports/seller-summary?period=$period');
+    return (
+      dealCount: json['deal_count'] as int,
+      saleCount: json['sale_count'] as int,
+      rentCount: json['rent_count'] as int,
+      earnings: (json['earnings'] as num).toDouble(),
+      topCategory: json['top_category'] as String?,
+      earningsChangePercent: json['earnings_change_percent'] as int?,
+      narrative: json['narrative'] as String,
+    );
+  }
 }

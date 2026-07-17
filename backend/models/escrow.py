@@ -42,3 +42,12 @@ class EscrowWalletPayRequest(BaseModel):
     seller_id: str
     type: str  # "sale" | "rent"
     rental_days: int | None = None  # required when type == "rent"
+
+
+class EscrowExtendRentalRequest(BaseModel):
+    transaction_id: str
+    additional_days: int
+
+
+class EscrowExtendRentalResponse(BaseModel):
+    new_due_date: str

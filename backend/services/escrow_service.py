@@ -451,6 +451,75 @@ def charge_late_fee(transaction_id: str) -> float:
     return fee
 
 
+def extend_rental(transaction_id: str, user_id: str, additional_days: int) -> str:
+    """Buyer pays to push a rental's due date forward instead of returning
+    or risking a late fee. Voluntary, so unlike charge_late_fee there's no
+    partial/debt path -- the buyer must have the full amount available.
+    Returns the new due date (ISO string)."""
+    if additional_days <= 0:
+        raise ValueError("Extension must be at least 1 day")
+
+    txn = _load_transaction(transaction_id)
+    if txn["buyer_id"] != user_id:
+        raise ValueError("Only the buyer can extend this rental")
+    if txn["type"] != "rent":
+        raise ValueError("Only rentals can be extended")
+    if txn["status"] != "active":
+        raise ValueError("This rental can't be extended anymore")
+
+    rental_days = txn.get("rental_days") or 1
+    amount = txn.get("amount") or txn["listings"]["price"]
+    daily_rate = amount / rental_days
+    extra_cost = round(daily_rate * additional_days, 2)
+
+    buyer_id = txn["buyer_id"]
+    seller_id = txn["seller_id"]
+    if extra_cost > wallet_service.get_balance(buyer_id):
+        raise ValueError(
+            f"You need RM{extra_cost:.2f} in your wallet to extend by "
+            f"{additional_days} day{'s' if additional_days != 1 else ''} -- top up first"
+        )
+
+    client = get_service_client()
+    client.table("wallet_ledger").insert({
+        "user_id": buyer_id,
+        "transaction_id": transaction_id,
+        "amount": -extra_cost,
+        "type": "rental_extension_charge",
+    }).execute()
+    client.table("wallet_ledger").insert({
+        "user_id": seller_id,
+        "transaction_id": transaction_id,
+        "amount": extra_cost,
+        "type": "rental_extension_credit",
+    }).execute()
+
+    due = date.fromisoformat(txn["rental_due_date"][:10])
+    new_due = due + timedelta(days=additional_days)
+    client.table("transactions").update({
+        "rental_due_date": new_due.isoformat(),
+        "rental_days": rental_days + additional_days,
+        "amount": amount + extra_cost,
+        # Clear so an already-overdue rental that's just been extended past
+        # today doesn't immediately re-notify on the next daily check.
+        "last_overdue_notified_at": None,
+    }).eq("id", transaction_id).execute()
+
+    listing_title = txn["listings"]["title"]
+    try:
+        notification_service.create(
+            user_id=buyer_id,
+            type="rental_extended",
+            title="Rental extended",
+            body=f'"{listing_title}" is now due back {new_due.strftime("%d/%m/%Y")}.',
+            transaction_id=transaction_id,
+        )
+    except Exception:
+        pass
+
+    return new_due.isoformat()
+
+
 def refund(transaction_id: str) -> None:
     """Release the hold without charging the buyer (deal cancelled before
     pickup). Cancelling a not-yet-captured PaymentIntent frees the held funds

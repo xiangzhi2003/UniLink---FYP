@@ -4,6 +4,8 @@ from models.escrow import (
     EscrowCheckoutResponse,
     EscrowConfirmCreateRequest,
     EscrowConfirmCreateResponse,
+    EscrowExtendRentalRequest,
+    EscrowExtendRentalResponse,
     EscrowStartRequest,
     EscrowStartResponse,
     EscrowStatusResponse,
@@ -150,3 +152,19 @@ async def refund(
 
     escrow_service.refund(payload.transaction_id)
     return EscrowStatusResponse(escrow_status="refunded")
+
+
+@router.post("/extend-rental", response_model=EscrowExtendRentalResponse)
+async def extend_rental(
+    payload: EscrowExtendRentalRequest,
+    user_id: str = Depends(current_user_id),
+):
+    """Buyer pays to push a rental's due date forward instead of returning
+    or risking a late fee."""
+    try:
+        new_due_date = escrow_service.extend_rental(
+            payload.transaction_id, user_id, payload.additional_days
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return EscrowExtendRentalResponse(new_due_date=new_due_date)

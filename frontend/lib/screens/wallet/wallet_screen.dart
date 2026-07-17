@@ -8,6 +8,7 @@ import '../../utils/error_messages.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/colored_header.dart';
 import '../../widgets/empty_state.dart';
+import 'seller_report_screen.dart';
 
 /// Simulated seller wallet: captured escrow payments credit this balance.
 /// No real bank transfer happens (test-mode FYP scope) — this is an in-app
@@ -301,6 +302,24 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0,
+            ),
+            child: AppCard(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SellerReportScreen()),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.auto_awesome, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: AppSpacing.md),
+                  const Expanded(child: Text('View Sales Report')),
+                  Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ],
               ),
             ),
           ),
