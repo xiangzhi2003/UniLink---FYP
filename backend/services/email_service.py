@@ -1,20 +1,27 @@
 import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
-import httpx
-
-_API_KEY = os.environ.get("RESEND_API_KEY", "")
-_FROM = os.environ.get("RESEND_FROM_EMAIL", "UniLink <onboarding@resend.dev>")
+_GMAIL_ADDRESS = os.environ.get("GMAIL_ADDRESS", "")
+_GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
 
 
 def send_email(to: str, subject: str, html_body: str) -> None:
-    """Sends a transactional email via Resend. No-ops silently if
-    RESEND_API_KEY isn't configured -- callers still wrap this in try/except
-    regardless, since email delivery must never block a real app flow."""
-    if not _API_KEY:
+    """Sends a transactional email via Gmail SMTP. No-ops silently if
+    GMAIL_ADDRESS/GMAIL_APP_PASSWORD aren't configured -- callers still wrap
+    this in try/except regardless, since email delivery must never block a
+    real app flow."""
+    if not _GMAIL_ADDRESS or not _GMAIL_APP_PASSWORD:
         return
-    httpx.post(
-        "https://api.resend.com/emails",
-        headers={"Authorization": f"Bearer {_API_KEY}"},
-        json={"from": _FROM, "to": [to], "subject": subject, "html": html_body},
-        timeout=10,
-    )
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"UniLink <{_GMAIL_ADDRESS}>"
+    msg["To"] = to
+    msg.attach(MIMEText(html_body, "html"))
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        server.starttls()
+        server.login(_GMAIL_ADDRESS, _GMAIL_APP_PASSWORD)
+        server.send_message(msg)
