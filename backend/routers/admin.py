@@ -9,6 +9,10 @@ from models.admin import (
     AdminStatsResponse,
     AdminUser,
     AdminUsersResponse,
+    CreateKnowledgeDocRequest,
+    DeleteKnowledgeDocRequest,
+    KnowledgeDoc,
+    KnowledgeDocsResponse,
     RemoveListingRequest,
     ResolveReportRequest,
     SetSuspendedRequest,
@@ -178,4 +182,60 @@ async def resolve_report(
             "resolved_at": datetime.now(timezone.utc).isoformat(),
         }
     ).eq("id", payload.report_id).execute()
+    return AdminOkResponse()
+
+
+@router.get("/knowledge", response_model=KnowledgeDocsResponse)
+async def all_knowledge_docs(admin_id: str = Depends(current_admin_id)):
+    rows = (
+        get_service_client()
+        .table("knowledge_docs")
+        .select("*")
+        .order("created_at", desc=True)
+        .execute()
+        .data
+    )
+    return KnowledgeDocsResponse(
+        docs=[
+            KnowledgeDoc(id=row["id"], title=row["title"], body=row["body"],
+                         created_at=row["created_at"])
+            for row in rows
+        ]
+    )
+
+
+@router.post("/knowledge", response_model=KnowledgeDoc)
+async def create_knowledge_doc(
+    payload: CreateKnowledgeDocRequest,
+    admin_id: str = Depends(current_admin_id),
+):
+    """Stores the doc in Supabase (source of truth) then embeds it into
+    Pinecone's 'knowledge' namespace so the per-listing chatbot's retrieval
+    step can find it."""
+    row = (
+        get_service_client()
+        .table("knowledge_docs")
+        .insert({"title": payload.title, "body": payload.body})
+        .execute()
+        .data[0]
+    )
+    try:
+        embedding_service.upsert_knowledge_doc(row["id"], payload.title, payload.body)
+    except Exception:
+        pass  # the doc itself is saved; a retrieval hiccup shouldn't block that
+    return KnowledgeDoc(
+        id=row["id"], title=row["title"], body=row["body"], created_at=row["created_at"]
+    )
+
+
+@router.post("/knowledge/delete", response_model=AdminOkResponse)
+async def delete_knowledge_doc(
+    payload: DeleteKnowledgeDocRequest,
+    admin_id: str = Depends(current_admin_id),
+):
+    get_service_client().table("knowledge_docs").delete().eq("id", payload.doc_id).execute()
+    try:
+        embedding_service.delete_knowledge_doc(payload.doc_id)
+    except Exception:
+        pass
     return AdminOkResponse()

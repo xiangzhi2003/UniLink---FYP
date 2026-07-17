@@ -163,6 +163,29 @@ async def listing_chat(
             f'{turn.role}: {turn.text}' for turn in payload.history[-6:]
         )
 
+        # Sprint 4 RAG knowledge base: admin-uploaded reference docs
+        # (campus policies, how-things-work notes, etc.), embedded into a
+        # separate Pinecone namespace. Wrapped so a retrieval hiccup never
+        # blocks the chat -- same defensive style as charge_late_fee.
+        kb_text = ""
+        try:
+            kb_ids = embedding_service.query_knowledge(payload.message, top_k=2)
+            if kb_ids:
+                docs = (
+                    get_service_client()
+                    .table("knowledge_docs")
+                    .select("title, body")
+                    .in_("id", kb_ids)
+                    .execute()
+                    .data
+                )
+                if docs:
+                    kb_text = "\n\nRelevant UniLink information:\n" + "\n".join(
+                        f"- {d['title']}: {d['body']}" for d in docs
+                    )
+        except Exception:
+            pass
+
         prompt = (
             "You are Gemini, acting as a knowledgeable shopping assistant embedded "
             "on a UniLink campus marketplace listing page. A student is viewing "
@@ -190,7 +213,8 @@ async def listing_chat(
             "line break for each point (plain text only, no markdown "
             "asterisks/headers). Keep each point to one short line where "
             "possible. Only write a plain sentence (no bullets) for a very "
-            "short, single-fact answer. Never pad the reply with filler.\n\n"
+            "short, single-fact answer. Never pad the reply with filler."
+            f"{kb_text}\n\n"
             f"Recent conversation:\n{history_text}\n\n"
             f"Student's message: {payload.message}"
         )

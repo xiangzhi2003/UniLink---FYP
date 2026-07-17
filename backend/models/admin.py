@@ -56,3 +56,23 @@ class AdminReport(BaseModel):
 
 class AdminReportsResponse(BaseModel):
     reports: list[AdminReport]
+
+
+class KnowledgeDoc(BaseModel):
+    id: str
+    title: str
+    body: str
+    created_at: str
+
+
+class KnowledgeDocsResponse(BaseModel):
+    docs: list[KnowledgeDoc]
+
+
+class CreateKnowledgeDocRequest(BaseModel):
+    title: str
+    body: str
+
+
+class DeleteKnowledgeDocRequest(BaseModel):
+    doc_id: str

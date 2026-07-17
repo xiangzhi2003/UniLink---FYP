@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import 'admin_dashboard_tab.dart';
+import 'admin_knowledge_tab.dart';
 import 'admin_listings_tab.dart';
 import 'admin_reports_tab.dart';
 import 'admin_users_tab.dart';
@@ -20,7 +21,7 @@ class AdminShell extends ConsumerStatefulWidget {
 class _AdminShellState extends ConsumerState<AdminShell> {
   int _tab = 0;
 
-  static const _titles = ['Dashboard', 'Listings', 'Users', 'Reports'];
+  static const _titles = ['Dashboard', 'Listings', 'Users', 'Reports', 'Knowledge'];
 
   Future<void> _confirmSignOut() async {
     final confirmed = await showDialog<bool>(
@@ -45,7 +46,8 @@ class _AdminShellState extends ConsumerState<AdminShell> {
       0 => AdminDashboardTab(onNavigateToTab: (index) => setState(() => _tab = index)),
       1 => const AdminListingsTab(),
       2 => const AdminUsersTab(),
-      _ => const AdminReportsTab(),
+      3 => const AdminReportsTab(),
+      _ => const AdminKnowledgeTab(),
     };
 
     return Scaffold(
@@ -85,6 +87,7 @@ class _AdminBottomNav extends StatelessWidget {
     (Icons.storefront_outlined, Icons.storefront, 'Listings'),
     (Icons.people_outline, Icons.people, 'Users'),
     (Icons.flag_outlined, Icons.flag, 'Reports'),
+    (Icons.menu_book_outlined, Icons.menu_book, 'Knowledge'),
   ];
 
   @override

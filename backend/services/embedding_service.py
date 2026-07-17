@@ -99,3 +99,30 @@ def query_listings(query: str, top_k: int = 30, min_score: float = _MIN_SCORE) -
     return [
         match["id"] for match in result["matches"] if match.get("score", 0) >= min_score
     ]
+
+
+# Admin-uploaded reference docs (Sprint 4 RAG knowledge base) live in a
+# separate Pinecone namespace, not mixed into the default one listings use.
+# This is what keeps them completely isolated from listing search with zero
+# migration risk -- no existing listing vector needs to change, and a
+# knowledge doc's id can never leak into a listing search result.
+_KNOWLEDGE_NAMESPACE = "knowledge"
+
+
+def upsert_knowledge_doc(doc_id: str, title: str, body: str) -> None:
+    vector = _embed(f"{title}\n{body}", is_query=False)
+    _get_index().upsert(
+        vectors=[{"id": doc_id, "values": vector}], namespace=_KNOWLEDGE_NAMESPACE
+    )
+
+
+def delete_knowledge_doc(doc_id: str) -> None:
+    _get_index().delete(ids=[doc_id], namespace=_KNOWLEDGE_NAMESPACE)
+
+
+def query_knowledge(query: str, top_k: int = 2, min_score: float = _MIN_SCORE) -> list[str]:
+    vector = _embed(query, is_query=True)
+    result = _get_index().query(vector=vector, top_k=top_k, namespace=_KNOWLEDGE_NAMESPACE)
+    return [
+        match["id"] for match in result["matches"] if match.get("score", 0) >= min_score
+    ]

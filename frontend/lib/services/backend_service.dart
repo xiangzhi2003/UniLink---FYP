@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../config/supabase_config.dart';
+import '../models/knowledge_doc.dart';
 import '../models/listing.dart';
 import '../models/report.dart';
 import '../models/wallet.dart';
@@ -344,5 +345,24 @@ class BackendService {
 
   Future<void> adminResolveReport(String reportId) async {
     await _post('/admin/reports/resolve', {'report_id': reportId});
+  }
+
+  /// All RAG knowledge-base docs, newest first.
+  Future<List<KnowledgeDoc>> fetchKnowledgeDocs() async {
+    final json = await _get('/admin/knowledge');
+    return (json['docs'] as List<dynamic>)
+        .map((row) => KnowledgeDoc.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Stores the doc and embeds it into Pinecone's knowledge namespace so
+  /// the per-listing chatbot's retrieval step can find it.
+  Future<KnowledgeDoc> createKnowledgeDoc({required String title, required String body}) async {
+    final json = await _post('/admin/knowledge', {'title': title, 'body': body});
+    return KnowledgeDoc.fromJson(json);
+  }
+
+  Future<void> deleteKnowledgeDoc(String docId) async {
+    await _post('/admin/knowledge/delete', {'doc_id': docId});
   }
 }
