@@ -38,7 +38,7 @@ app.include_router(reports.router)
 @app.on_event("startup")
 async def on_startup():
     logger.info("UniLink API starting up")
-    scheduler.add_job(rental_reminder_service.check_overdue_rentals, "cron", hour=9)
+    scheduler.add_job(rental_reminder_service.check_due_today_rentals, "cron", hour=9)
     scheduler.start()
 
 

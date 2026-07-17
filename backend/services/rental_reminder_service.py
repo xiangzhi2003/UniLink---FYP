@@ -4,11 +4,15 @@ from services import email_service, notification_service
 from services.supabase_client import get_service_client
 
 
-def check_overdue_rentals() -> None:
-    """Runs once daily (see main.py's scheduler). Finds active rentals past
-    their due date that haven't been notified today, sends an in-app
-    notification + email for each, and stamps last_overdue_notified_at so a
-    server restart mid-day can't double-send."""
+def check_due_today_rentals() -> None:
+    """Runs once daily (see main.py's scheduler). Finds active rentals due
+    back TODAY (not yet overdue) that haven't been reminded today, and sends
+    a single in-app notification + email nudging the buyer to return it,
+    mentioning that a daily late fee kicks in if they don't. Stamps
+    last_overdue_notified_at so a server restart mid-day can't double-send --
+    this is the buyer's only reminder; nothing fires again after today even
+    if the item is never returned (the late fee itself is still charged via
+    the existing return-scan logic, independent of this reminder)."""
     client = get_service_client()
     today = date.today()
     rows = (
@@ -19,7 +23,7 @@ def check_overdue_rentals() -> None:
         )
         .eq("type", "rent")
         .eq("status", "active")
-        .lt("rental_due_date", today.isoformat())
+        .eq("rental_due_date", today.isoformat())
         .execute()
         .data
     )
@@ -28,10 +32,7 @@ def check_overdue_rentals() -> None:
         if txn.get("last_overdue_notified_at") == today.isoformat():
             continue
 
-        due = date.fromisoformat(txn["rental_due_date"][:10])
-        days_overdue = (today - due).days
-        daily_rate = txn["amount"] / (txn["rental_days"] or 1)
-        fee_so_far = round(daily_rate * days_overdue, 2)
+        daily_rate = round(txn["amount"] / (txn["rental_days"] or 1), 2)
         listing_title = (txn.get("listings") or {}).get("title", "your rental")
         buyer = txn.get("buyer") or {}
         buyer_id = txn.get("buyer_id")
@@ -39,12 +40,12 @@ def check_overdue_rentals() -> None:
         try:
             notification_service.create(
                 user_id=buyer_id,
-                type="rental_overdue",
-                title="Rental overdue",
+                type="rental_due_today",
+                title="Rental due today",
                 body=(
-                    f'"{listing_title}" was due back {days_overdue} day'
-                    f'{"s" if days_overdue != 1 else ""} ago. Return it or extend '
-                    f"your rental — a late fee of RM{fee_so_far:.2f} applies so far."
+                    f'"{listing_title}" is due back today. Return it or extend '
+                    f"your rental — a late fee of RM{daily_rate:.2f}/day applies "
+                    f"if it's not returned by end of day."
                 ),
                 transaction_id=txn["id"],
             )
@@ -55,14 +56,13 @@ def check_overdue_rentals() -> None:
             try:
                 email_service.send_email(
                     to=buyer["email"],
-                    subject=f'Overdue: "{listing_title}" on UniLink',
+                    subject=f'Reminder: "{listing_title}" is due back today',
                     html_body=(
                         f"<p>Hi {buyer.get('full_name') or 'there'},</p>"
-                        f'<p>Your rental of "{listing_title}" was due back on {due} '
-                        f"and is now {days_overdue} day(s) overdue.</p>"
+                        f'<p>Your rental of "{listing_title}" is due back today.</p>'
                         f"<p>Please return it or extend your rental in the app — "
-                        f"a late fee of RM{fee_so_far:.2f} applies so far and grows "
-                        f"daily until it's resolved.</p>"
+                        f"if it isn't returned by the end of today, a late fee of "
+                        f"RM{daily_rate:.2f} will be charged for each day it's overdue.</p>"
                     ),
                 )
             except Exception:
