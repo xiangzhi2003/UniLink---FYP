@@ -152,9 +152,13 @@ class _SellerReportScreenState extends ConsumerState<SellerReportScreen> {
   /// A simple line chart of earnings over time this period -- daily points
   /// for the month view, monthly points for the year view. Custom-painted
   /// (no charting package needed for one line chart).
+  static const _chartHeight = 140.0;
+  static const _yAxisWidth = 46.0;
+
   Widget _trendChart(BuildContext context, List<({String label, double earnings})> trend) {
     final scheme = Theme.of(context).colorScheme;
     final values = trend.map((p) => p.earnings).toList();
+    final maxY = values.isEmpty ? 0.0 : values.reduce((a, b) => a > b ? a : b);
 
     // Showing every label would be unreadable for a 28-31 point month view --
     // thin them out to roughly 6 evenly spaced labels (always including the
@@ -164,6 +168,8 @@ class _SellerReportScreenState extends ConsumerState<SellerReportScreen> {
       for (var i = 0; i < trend.length; i++)
         (i % labelStep == 0 || i == trend.length - 1) ? trend[i].label : '',
     ];
+
+    final axisLabelStyle = TextStyle(fontSize: 9, color: scheme.onSurfaceVariant);
 
     return AppCard(
       child: Column(
@@ -177,30 +183,71 @@ class _SellerReportScreenState extends ConsumerState<SellerReportScreen> {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            height: 140,
-            width: double.infinity,
-            child: CustomPaint(
-              painter: _LineChartPainter(
-                values: values,
-                lineColor: scheme.primary,
-                gridColor: scheme.outlineVariant,
+          if (maxY == 0)
+            SizedBox(
+              height: _chartHeight,
+              child: Center(
+                child: Text(
+                  'No earnings yet this period',
+                  style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
+            )
+          else
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (final label in labels)
-                Expanded(
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 9, color: scheme.onSurfaceVariant),
+              // Y-axis: max / mid / zero RM labels next to the chart's grid lines.
+              SizedBox(
+                width: _yAxisWidth,
+                height: _chartHeight,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('RM${maxY.toStringAsFixed(0)}', style: axisLabelStyle),
+                    Text('RM${(maxY / 2).toStringAsFixed(0)}', style: axisLabelStyle),
+                    Text('RM0', style: axisLabelStyle),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: SizedBox(
+                  height: _chartHeight,
+                  child: CustomPaint(
+                    painter: _LineChartPainter(
+                      values: values,
+                      lineColor: scheme.primary,
+                      gridColor: scheme.outlineVariant,
+                    ),
                   ),
                 ),
+              ),
             ],
           ),
+          if (maxY != 0) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Row(
+              children: [
+                SizedBox(width: _yAxisWidth + 6),
+                Expanded(
+                  child: Row(
+                    children: [
+                      for (final label in labels)
+                        Expanded(
+                          child: Text(
+                            label,
+                            textAlign: TextAlign.center,
+                            style: axisLabelStyle,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
