@@ -1,6 +1,12 @@
 from pydantic import BaseModel
 
 
+class CategoryEarnings(BaseModel):
+    category: str
+    count: int
+    earnings: float
+
+
 class SellerReportResponse(BaseModel):
     period: str  # "month" | "year"
     deal_count: int
@@ -9,4 +15,5 @@ class SellerReportResponse(BaseModel):
     earnings: float
     top_category: str | None = None
     earnings_change_percent: int | None = None  # vs. the previous equivalent period
+    category_breakdown: list[CategoryEarnings] = []  # earnings by category, highest first
     narrative: str  # AI-written summary of the numbers above

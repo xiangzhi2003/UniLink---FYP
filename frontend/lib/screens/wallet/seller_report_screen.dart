@@ -12,6 +12,7 @@ typedef _SellerReport = ({
   double earnings,
   String? topCategory,
   int? earningsChangePercent,
+  List<({String category, int count, double earnings})> categoryBreakdown,
   String narrative,
 });
 
@@ -114,6 +115,10 @@ class _SellerReportScreenState extends ConsumerState<SellerReportScreen> {
                           ),
                         ],
                       ),
+                      if (report.categoryBreakdown.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.lg),
+                        _categoryChart(context, report.categoryBreakdown),
+                      ],
                       const SizedBox(height: AppSpacing.lg),
                       AppCard(
                         child: Column(
@@ -142,6 +147,85 @@ class _SellerReportScreenState extends ConsumerState<SellerReportScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// A simple horizontal bar chart of earnings per category -- built with
+  /// plain Flutter widgets (no charting package needed for one bar chart).
+  Widget _categoryChart(
+    BuildContext context,
+    List<({String category, int count, double earnings})> breakdown,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    final maxEarnings = breakdown.map((c) => c.earnings).reduce((a, b) => a > b ? a : b);
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.bar_chart_rounded, size: 18, color: scheme.primary),
+              const SizedBox(width: 6),
+              const Text('Earnings by Category', style: TextStyle(fontWeight: FontWeight.w700)),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          for (var i = 0; i < breakdown.length; i++) ...[
+            _categoryBarRow(scheme, breakdown[i], maxEarnings),
+            if (i != breakdown.length - 1) const SizedBox(height: AppSpacing.sm),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _categoryBarRow(
+    ColorScheme scheme,
+    ({String category, int count, double earnings}) c,
+    double maxEarnings,
+  ) {
+    final fraction = maxEarnings == 0 ? 0.0 : c.earnings / maxEarnings;
+    return Row(
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(
+            c.category,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12),
+          ),
+        ),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Stack(
+                  children: [
+                    Container(height: 18, color: scheme.surfaceContainerHighest),
+                    Container(
+                      height: 18,
+                      width: constraints.maxWidth * fraction,
+                      color: scheme.primary,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 72,
+          child: Text(
+            'RM${c.earnings.toStringAsFixed(2)}',
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
     );
   }
 

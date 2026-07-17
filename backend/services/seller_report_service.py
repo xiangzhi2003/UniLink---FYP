@@ -94,71 +94,122 @@ def generate_seller_report(user_id: str, period: str) -> dict:
     current = _stats_for(client, user_id, current_start, current_end)
     previous = _stats_for(client, user_id, previous_start, previous_end)
 
+    has_history = previous["deal_count"] > 0
     earnings_change = None
-    if previous["earnings"] > 0:
+    if has_history and previous["earnings"] > 0:
         earnings_change = round(
             (current["earnings"] - previous["earnings"]) / previous["earnings"] * 100
         )
-    deal_count_change = current["deal_count"] - previous["deal_count"]
+    deal_count_change = current["deal_count"] - previous["deal_count"] if has_history else None
 
+    category_breakdown = [
+        {"category": cat, "count": stats["count"], "earnings": round(stats["earnings"], 2)}
+        for cat, stats in sorted(
+            current["categories"].items(), key=lambda kv: -kv[1]["earnings"]
+        )
+    ]
     category_lines = (
         ", ".join(
-            f"{cat} ({stats['count']} deal{'s' if stats['count'] != 1 else ''}, "
-            f"RM{stats['earnings']:.2f})"
-            for cat, stats in sorted(
-                current["categories"].items(), key=lambda kv: -kv[1]["earnings"]
-            )
+            f"{c['category']} ({c['count']} deal{'s' if c['count'] != 1 else ''}, RM{c['earnings']:.2f})"
+            for c in category_breakdown
         )
-        if current["categories"]
-        else "none"
-    )
-    prev_category_lines = (
-        ", ".join(
-            f"{cat} ({stats['count']})"
-            for cat, stats in sorted(
-                previous["categories"].items(), key=lambda kv: -kv[1]["count"]
-            )
-        )
-        if previous["categories"]
+        if category_breakdown
         else "none"
     )
 
-    prompt = (
-        "You are writing an encouraging, insightful performance summary for a "
-        "student seller on UniLink, a campus marketplace app. Use ONLY the "
-        "numbers given below -- do not invent, estimate, or assume anything "
-        "not explicitly stated. When you mention a category or item, use its "
-        "exact name from the data below.\n\n"
-        f"Period: this {period}\n"
-        f"Completed deals: {current['deal_count']} "
-        f"({current['sale_count']} sales, {current['rent_count']} rentals)\n"
-        f"Total earnings: RM{current['earnings']:.2f} "
-        f"(RM{current['sale_earnings']:.2f} from sales, RM{current['rent_earnings']:.2f} from rentals)\n"
-        f"Average earnings per deal: RM{current['avg_deal_value']:.2f}\n"
-        f"Earnings by category, highest first: {category_lines}\n"
-        + (
-            f"Best-earning item: \"{current['top_listing']}\" — "
-            f"{current['top_listing_count']} deal(s), RM{current['top_listing_earnings']:.2f} total\n"
-            if current["top_listing"]
-            else ""
+    if current["deal_count"] == 0:
+        # No activity at all this period -- comparing to anything, even "no
+        # history", would just be noise. A distinct, honest prompt instead of
+        # forcing the trend-comparison structure onto empty data.
+        prompt = (
+            "You are writing a short, encouraging message for a student seller "
+            "on UniLink, a campus marketplace app, who has not completed any "
+            f"deals this {period} yet. Use ONLY the facts given -- do not invent "
+            "any numbers. Write 2-3 short sentences: acknowledge there's no "
+            "activity yet this period, and give one practical, encouraging "
+            "suggestion to get their first deal (e.g. list an item, price it "
+            "competitively, add clear photos). Plain text, no markdown."
         )
-        + f"Previous {period} -- deals: {previous['deal_count']}, earnings: RM{previous['earnings']:.2f}, "
-        f"categories: {prev_category_lines}\n"
-        f"Change in deal count vs previous {period}: {deal_count_change:+d}\n"
-        + (
-            f"Change in earnings vs previous {period}: {earnings_change:+d}%\n"
-            if earnings_change is not None
-            else ""
+    elif not has_history:
+        # First-ever active period for this seller -- there's genuinely
+        # nothing to compare against, so the prompt must not ask for a trend.
+        prompt = (
+            "You are writing an encouraging, insightful performance summary for "
+            "a student seller on UniLink, a campus marketplace app. This is "
+            f"their first {period} with any completed deals, so there is NO "
+            "previous period to compare against -- do not mention growth, "
+            "decline, or any comparison to a previous period. Use ONLY the "
+            "numbers given below -- do not invent, estimate, or assume anything "
+            "not explicitly stated. When you mention a category or item, use "
+            "its exact name from the data below.\n\n"
+            f"Period: this {period} (first period with activity)\n"
+            f"Completed deals: {current['deal_count']} "
+            f"({current['sale_count']} sales, {current['rent_count']} rentals)\n"
+            f"Total earnings: RM{current['earnings']:.2f} "
+            f"(RM{current['sale_earnings']:.2f} from sales, RM{current['rent_earnings']:.2f} from rentals)\n"
+            f"Average earnings per deal: RM{current['avg_deal_value']:.2f}\n"
+            f"Earnings by category, highest first: {category_lines}\n"
+            + (
+                f"Best-earning item: \"{current['top_listing']}\" — "
+                f"{current['top_listing_count']} deal(s), RM{current['top_listing_earnings']:.2f} total\n"
+                if current["top_listing"]
+                else ""
+            )
+            + "\nWrite 4-6 sentences covering: (1) a welcoming summary of this "
+            "first period's performance, (2) which specific category earned "
+            "the most and how it compares to the others by name, (3) a callout "
+            "of the best-earning item by name if one is given, and (4) one "
+            "concrete, practical suggestion for next period grounded in the "
+            "numbers above. Plain text, no markdown, no bullet points."
         )
-        + "\nWrite 5-7 sentences covering: (1) an overall summary of this "
-        "period's performance, (2) how it compares to the previous period by "
-        "name (deal count and earnings trend), (3) which specific category "
-        "earned the most and how it compares to the others by name, (4) a "
-        "callout of the best-earning item by name if one is given, and (5) "
-        "one concrete, practical suggestion for next period grounded in the "
-        "numbers above (e.g. lean into the top category, or diversify away "
-        "from a single category). Plain text, no markdown, no bullet points."
-    )
+    else:
+        prev_category_lines = (
+            ", ".join(
+                f"{cat} ({stats['count']})"
+                for cat, stats in sorted(
+                    previous["categories"].items(), key=lambda kv: -kv[1]["count"]
+                )
+            )
+            if previous["categories"]
+            else "none"
+        )
+        prompt = (
+            "You are writing an encouraging, insightful performance summary for a "
+            "student seller on UniLink, a campus marketplace app. Use ONLY the "
+            "numbers given below -- do not invent, estimate, or assume anything "
+            "not explicitly stated. When you mention a category or item, use its "
+            "exact name from the data below.\n\n"
+            f"Period: this {period}\n"
+            f"Completed deals: {current['deal_count']} "
+            f"({current['sale_count']} sales, {current['rent_count']} rentals)\n"
+            f"Total earnings: RM{current['earnings']:.2f} "
+            f"(RM{current['sale_earnings']:.2f} from sales, RM{current['rent_earnings']:.2f} from rentals)\n"
+            f"Average earnings per deal: RM{current['avg_deal_value']:.2f}\n"
+            f"Earnings by category, highest first: {category_lines}\n"
+            + (
+                f"Best-earning item: \"{current['top_listing']}\" — "
+                f"{current['top_listing_count']} deal(s), RM{current['top_listing_earnings']:.2f} total\n"
+                if current["top_listing"]
+                else ""
+            )
+            + f"Previous {period} -- deals: {previous['deal_count']}, earnings: RM{previous['earnings']:.2f}, "
+            f"categories: {prev_category_lines}\n"
+            f"Change in deal count vs previous {period}: {deal_count_change:+d}\n"
+            + (
+                f"Change in earnings vs previous {period}: {earnings_change:+d}%\n"
+                if earnings_change is not None
+                else ""
+            )
+            + "\nWrite 5-7 sentences covering: (1) an overall summary of this "
+            "period's performance, (2) how it compares to the previous period by "
+            "name (deal count and earnings trend), (3) which specific category "
+            "earned the most and how it compares to the others by name, (4) a "
+            "callout of the best-earning item by name if one is given, and (5) "
+            "one concrete, practical suggestion for next period grounded in the "
+            "numbers above (e.g. lean into the top category, or diversify away "
+            "from a single category). Plain text, no markdown, no bullet points."
+        )
+
     try:
         narrative = generation_service.generate_text(prompt)
     except Exception:
@@ -172,5 +223,6 @@ def generate_seller_report(user_id: str, period: str) -> dict:
         "earnings": current["earnings"],
         "top_category": current["top_category"],
         "earnings_change_percent": earnings_change,
+        "category_breakdown": category_breakdown,
         "narrative": narrative,
     }

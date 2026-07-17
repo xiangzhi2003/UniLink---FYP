@@ -377,9 +377,17 @@ class BackendService {
         double earnings,
         String? topCategory,
         int? earningsChangePercent,
+        List<({String category, int count, double earnings})> categoryBreakdown,
         String narrative,
       })> fetchSellerReport(String period) async {
     final json = await _get('/reports/seller-summary?period=$period');
+    final breakdown = (json['category_breakdown'] as List? ?? [])
+        .map((c) => (
+              category: c['category'] as String,
+              count: c['count'] as int,
+              earnings: (c['earnings'] as num).toDouble(),
+            ))
+        .toList();
     return (
       dealCount: json['deal_count'] as int,
       saleCount: json['sale_count'] as int,
@@ -387,6 +395,7 @@ class BackendService {
       earnings: (json['earnings'] as num).toDouble(),
       topCategory: json['top_category'] as String?,
       earningsChangePercent: json['earnings_change_percent'] as int?,
+      categoryBreakdown: breakdown,
       narrative: json['narrative'] as String,
     );
   }
