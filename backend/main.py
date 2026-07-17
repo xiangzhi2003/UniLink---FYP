@@ -1,4 +1,5 @@
 import logging
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
@@ -38,7 +39,12 @@ app.include_router(reports.router)
 @app.on_event("startup")
 async def on_startup():
     logger.info("UniLink API starting up")
-    scheduler.add_job(rental_reminder_service.check_due_today_rentals, "cron", hour=9)
+    scheduler.add_job(
+        rental_reminder_service.check_due_today_rentals,
+        "cron",
+        hour=9,
+        timezone=ZoneInfo("Asia/Kuala_Lumpur"),
+    )
     scheduler.start()
 
 
