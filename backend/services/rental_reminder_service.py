@@ -64,8 +64,11 @@ def check_due_today_rentals() -> None:
                         f"for each day it's overdue.</p>"
                     ),
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                # Never block the reminder over an email hiccup -- but print
+                # so a real failure (bad credentials, blocked SMTP, etc.)
+                # shows up in Railway logs instead of vanishing silently.
+                print(f"check_due_today_rentals: email send failed for {txn['id']}: {e}")
 
         client.table("transactions").update(
             {"last_overdue_notified_at": today.isoformat()}
