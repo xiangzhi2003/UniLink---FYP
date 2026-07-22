@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : report.dart
+// Description     : Data model for a user-filed moderation Report against a listing or user.
+// First Written on: Friday,17-Jul-2026
+// Edited on       : Friday,17-Jul-2026
+
 /// A user-filed report as the admin panel sees it (joined display names
 /// included). Regular users only ever *insert* reports; reading them is
 /// admin-only via the backend.

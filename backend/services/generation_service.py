@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : generation_service.py
+# Description     : Wraps Gemini's chat/generation model for the listing chatbot, AI listing suggestions, and the seller report narrative.
+# First Written on: Wednesday,15-Jul-2026
+# Edited on       : Wednesday,15-Jul-2026
+
 import os
 
 from google import genai

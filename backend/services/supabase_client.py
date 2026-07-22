@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : supabase_client.py
+# Description     : Provides the service-role Supabase client used for all privileged backend reads/writes.
+# First Written on: Monday,06-Jul-2026
+# Edited on       : Monday,06-Jul-2026
+
 import os
 
 from supabase import Client, create_client

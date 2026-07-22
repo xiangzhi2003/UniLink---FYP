@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : email_service.py
+# Description     : Sends transactional emails (rental due-date reminders) via Gmail SMTP.
+# First Written on: Saturday,18-Jul-2026
+# Edited on       : Saturday,18-Jul-2026
+
 import os
 import smtplib
 from email.mime.multipart import MIMEMultipart

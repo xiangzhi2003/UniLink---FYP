@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : app_bottom_nav.dart
+// Description     : Shared 5-item bottom navigation bar (Home/Chat/Sell/My Listings/Profile) with unread badges.
+// First Written on: Tuesday,07-Jul-2026
+// Edited on       : Wednesday,15-Jul-2026
+
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 

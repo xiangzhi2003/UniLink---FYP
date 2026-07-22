@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : favorites_screen.dart
+// Description     : Grid of the signed-in student's favorited listings.
+// First Written on: Monday,13-Jul-2026
+// Edited on       : Monday,13-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/listing.dart';

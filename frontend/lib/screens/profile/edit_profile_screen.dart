@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : edit_profile_screen.dart
+// Description     : Form for editing the signed-in user's profile details.
+// First Written on: Friday,03-Jul-2026
+// Edited on       : Tuesday,07-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/user_profile.dart';

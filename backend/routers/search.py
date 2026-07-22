@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : search.py
+# Description     : HTTP endpoints for semantic listing search, listing indexing, the per-listing AI chatbot, and AI-assisted listing creation.
+# First Written on: Monday,06-Jul-2026
+# Edited on       : Friday,17-Jul-2026
+
 import base64
 import json
 

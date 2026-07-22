@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : payment_success_screen.dart
+// Description     : Confirmation screen shown immediately after a payment is confirmed held in escrow.
+// First Written on: Tuesday,14-Jul-2026
+// Edited on       : Tuesday,14-Jul-2026
+
 import 'package:flutter/material.dart';
 import '../../theme/app_tokens.dart';
 import 'transaction_detail_screen.dart';

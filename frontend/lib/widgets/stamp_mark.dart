@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : stamp_mark.dart
+// Description     : UniLink's signature stamp/seal mark widget, used as a verified/branding icon.
+// First Written on: Friday,03-Jul-2026
+// Edited on       : Tuesday,07-Jul-2026
+
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 

@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : auth.py
+# Description     : FastAPI dependency that validates a caller's Supabase access token and returns their user id.
+# First Written on: Monday,06-Jul-2026
+# Edited on       : Friday,17-Jul-2026
+
 from fastapi import Depends, Header, HTTPException, status
 
 from services.supabase_client import get_service_client

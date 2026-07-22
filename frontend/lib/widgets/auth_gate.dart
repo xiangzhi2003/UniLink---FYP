@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : auth_gate.dart
+// Description     : Root routing widget -- decides which screen to show based on auth/profile/suspension state.
+// First Written on: Friday,03-Jul-2026
+// Edited on       : Friday,17-Jul-2026
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

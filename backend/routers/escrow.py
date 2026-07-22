@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : escrow.py
+# Description     : HTTP endpoints for the escrow payment lifecycle -- start/confirm/create/refund via Stripe or wallet.
+# First Written on: Monday,06-Jul-2026
+# Edited on       : Saturday,18-Jul-2026
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from models.escrow import (

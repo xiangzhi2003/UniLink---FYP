@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : reports.py
+# Description     : Pydantic request/response schemas for the AI seller sales report endpoint.
+# First Written on: Saturday,18-Jul-2026
+# Edited on       : Saturday,18-Jul-2026
+
 from pydantic import BaseModel
 
 

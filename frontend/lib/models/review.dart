@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : review.dart
+// Description     : Data model for a buyer's Review and rating of a seller after a completed deal.
+// First Written on: Thursday,16-Jul-2026
+// Edited on       : Thursday,16-Jul-2026
+
 class Review {
   final String id;
   final String transactionId;

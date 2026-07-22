@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : admin.py
+# Description     : Pydantic request/response schemas for the admin router (stats, listings, users, reports, knowledge docs).
+# First Written on: Friday,17-Jul-2026
+# Edited on       : Saturday,18-Jul-2026
+
 from pydantic import BaseModel
 
 

@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : auth_provider.dart
+// Description     : Riverpod providers for authentication state, the current user's profile, and the in-progress-registration flag.
+// First Written on: Friday,03-Jul-2026
+// Edited on       : Monday,13-Jul-2026
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_profile.dart';

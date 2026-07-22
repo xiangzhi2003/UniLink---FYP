@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : async_state_view.dart
+// Description     : Generic loading/error/empty/data wrapper around a Future, replacing repeated FutureBuilder boilerplate.
+// First Written on: Tuesday,07-Jul-2026
+// Edited on       : Monday,13-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import '../theme/app_tokens.dart';

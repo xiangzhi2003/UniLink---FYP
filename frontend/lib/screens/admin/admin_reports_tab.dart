@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : admin_reports_tab.dart
+// Description     : Admin tab showing the queue of user-filed reports/disputes for review and resolution.
+// First Written on: Friday,17-Jul-2026
+// Edited on       : Friday,17-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/report.dart';

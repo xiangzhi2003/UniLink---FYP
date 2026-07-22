@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : app_fonts.dart
+// Description     : Monospace text style helper used for numeric/tabular data (prices, timestamps, transaction ids).
+// First Written on: Tuesday,07-Jul-2026
+// Edited on       : Tuesday,07-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 

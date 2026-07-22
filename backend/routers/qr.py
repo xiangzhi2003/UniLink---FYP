@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : qr.py
+# Description     : HTTP endpoints for the TOTP QR handshake -- generating and verifying pickup/return codes.
+# First Written on: Monday,06-Jul-2026
+# Edited on       : Thursday,16-Jul-2026
+
 import json
 from datetime import datetime, timezone
 

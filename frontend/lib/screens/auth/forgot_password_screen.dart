@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : forgot_password_screen.dart
+// Description     : Screen for requesting a password-reset email.
+// First Written on: Saturday,04-Jul-2026
+// Edited on       : Tuesday,07-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';

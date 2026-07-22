@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : app_text_field.dart
+// Description     : Shared labeled text-field widget wrapping a TextFormField with validation.
+// First Written on: Tuesday,07-Jul-2026
+// Edited on       : Tuesday,07-Jul-2026
+
 import 'package:flutter/material.dart';
 import '../theme/app_tokens.dart';
 

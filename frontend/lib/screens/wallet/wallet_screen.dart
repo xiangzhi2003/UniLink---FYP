@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : wallet_screen.dart
+// Description     : Simulated wallet screen -- balance, transaction history, deposit/withdraw, and entry point to the seller report.
+// First Written on: Tuesday,14-Jul-2026
+// Edited on       : Saturday,18-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';

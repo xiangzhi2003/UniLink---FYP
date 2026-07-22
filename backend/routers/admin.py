@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : admin.py
+# Description     : Admin-only HTTP endpoints for marketplace stats, listing moderation, user management, reports, and knowledge-base docs.
+# First Written on: Friday,17-Jul-2026
+# Edited on       : Saturday,18-Jul-2026
+
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException

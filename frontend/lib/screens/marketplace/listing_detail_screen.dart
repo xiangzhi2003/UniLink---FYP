@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : listing_detail_screen.dart
+// Description     : Listing detail screen -- photos, description, price, seller info, and buy/rent/report/chat actions.
+// First Written on: Sunday,05-Jul-2026
+// Edited on       : Friday,17-Jul-2026
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;

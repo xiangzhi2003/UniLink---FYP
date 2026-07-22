@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : escrow_service.py
+# Description     : Core escrow business logic -- Stripe Checkout sessions, payment capture/refund, wallet payments, and late-fee charging.
+# First Written on: Monday,06-Jul-2026
+# Edited on       : Saturday,18-Jul-2026
+
 import os
 from datetime import date, timedelta
 

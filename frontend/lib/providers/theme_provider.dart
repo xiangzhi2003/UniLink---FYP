@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : theme_provider.dart
+// Description     : Riverpod provider/notifier persisting the user's System/Light/Dark theme choice.
+// First Written on: Tuesday,07-Jul-2026
+// Edited on       : Monday,13-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';

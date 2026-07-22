@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : transaction_provider.dart
+// Description     : Riverpod providers exposing TransactionService, BackendService, and the live count of deals held in escrow.
+// First Written on: Monday,06-Jul-2026
+// Edited on       : Thursday,16-Jul-2026
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/backend_service.dart';
 import '../services/transaction_service.dart';

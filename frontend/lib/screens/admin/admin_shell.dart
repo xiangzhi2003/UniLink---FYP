@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : admin_shell.dart
+// Description     : Root shell for the admin app -- bottom navigation across the dashboard, listings, users, reports and knowledge tabs.
+// First Written on: Friday,17-Jul-2026
+// Edited on       : Friday,17-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';

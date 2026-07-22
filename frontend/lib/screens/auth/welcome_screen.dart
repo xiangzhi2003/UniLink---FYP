@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : welcome_screen.dart
+// Description     : Landing screen of the auth flow introducing UniLink's core features before Register/Login.
+// First Written on: Friday,03-Jul-2026
+// Edited on       : Tuesday,07-Jul-2026
+
 import 'package:flutter/material.dart';
 import '../../theme/app_tokens.dart';
 import '../../widgets/app_button.dart';

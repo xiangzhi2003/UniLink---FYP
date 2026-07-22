@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : user_profile.dart
+// Description     : Data model for a UserProfile -- a student or admin account.
+// First Written on: Friday,03-Jul-2026
+// Edited on       : Friday,17-Jul-2026
+
 class UserProfile {
   final String id;
   final String email;

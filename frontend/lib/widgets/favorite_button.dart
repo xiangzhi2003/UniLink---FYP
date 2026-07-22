@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : favorite_button.dart
+// Description     : Heart-toggle button for favoriting a listing, synced across every screen showing it.
+// First Written on: Monday,13-Jul-2026
+// Edited on       : Monday,13-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/favorite_provider.dart';

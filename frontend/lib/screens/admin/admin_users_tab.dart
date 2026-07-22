@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : admin_users_tab.dart
+// Description     : Admin tab for managing user accounts (suspend/unsuspend, search/sort).
+// First Written on: Friday,17-Jul-2026
+// Edited on       : Friday,17-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/transaction_provider.dart';

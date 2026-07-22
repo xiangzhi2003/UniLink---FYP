@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : notification_service.dart
+// Description     : Wraps Supabase queries for fetching and marking read the signed-in user's notifications.
+// First Written on: Tuesday,14-Jul-2026
+// Edited on       : Tuesday,14-Jul-2026
+
 import '../config/supabase_config.dart';
 import '../models/notification.dart';
 

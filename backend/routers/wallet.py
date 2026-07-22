@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : wallet.py
+# Description     : HTTP endpoints for the simulated wallet -- balance summary, deposits, withdrawals, and late-fee debt settlement.
+# First Written on: Tuesday,14-Jul-2026
+# Edited on       : Thursday,16-Jul-2026
+
 import traceback
 
 from fastapi import APIRouter, Depends, HTTPException

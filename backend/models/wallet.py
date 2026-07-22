@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : wallet.py
+# Description     : Pydantic request/response schemas for the wallet router (summary, deposit, withdraw, debt settlement).
+# First Written on: Tuesday,14-Jul-2026
+# Edited on       : Thursday,16-Jul-2026
+
 from pydantic import BaseModel
 
 

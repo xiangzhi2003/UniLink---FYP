@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : transaction_service.dart
+// Description     : Wraps Supabase queries for fetching the signed-in user's transactions/deals.
+// First Written on: Monday,06-Jul-2026
+// Edited on       : Thursday,16-Jul-2026
+
 import '../config/supabase_config.dart';
 import '../models/transaction.dart';
 

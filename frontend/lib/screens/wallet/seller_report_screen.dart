@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : seller_report_screen.dart
+// Description     : AI-narrated monthly/yearly seller sales report with stat cards, trend chart, category chart, and AI insights.
+// First Written on: Saturday,18-Jul-2026
+// Edited on       : Saturday,18-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/transaction_provider.dart';

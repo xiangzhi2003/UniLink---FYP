@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : escrow.py
+# Description     : Pydantic request/response schemas for the escrow router (checkout, confirm, refund, wallet payment).
+# First Written on: Monday,06-Jul-2026
+# Edited on       : Saturday,18-Jul-2026
+
 from pydantic import BaseModel
 
 

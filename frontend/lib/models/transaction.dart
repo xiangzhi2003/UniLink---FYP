@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : transaction.dart
+// Description     : Data model for a TransactionDeal -- a buy/rent transaction including escrow status and rental due dates.
+// First Written on: Monday,06-Jul-2026
+// Edited on       : Tuesday,14-Jul-2026
+
 class TransactionDeal {
   final String id;
   final String listingId;

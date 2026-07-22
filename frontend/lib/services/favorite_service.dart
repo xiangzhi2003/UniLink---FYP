@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : favorite_service.dart
+// Description     : Wraps Supabase queries for adding, removing, and listing a user's favorited listings.
+// First Written on: Monday,13-Jul-2026
+// Edited on       : Monday,13-Jul-2026
+
 import '../config/supabase_config.dart';
 import '../models/listing.dart';
 

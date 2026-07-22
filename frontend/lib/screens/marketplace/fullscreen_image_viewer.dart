@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : fullscreen_image_viewer.dart
+// Description     : Full-screen pinch-to-zoom, swipeable photo viewer for listing images.
+// First Written on: Wednesday,15-Jul-2026
+// Edited on       : Wednesday,15-Jul-2026
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 

@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : my_listings_screen.dart
+// Description     : The signed-in seller's own listings with status and management actions.
+// First Written on: Sunday,05-Jul-2026
+// Edited on       : Monday,13-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/listing.dart';

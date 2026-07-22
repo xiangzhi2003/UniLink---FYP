@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : star_rating.dart
+// Description     : Row-of-5-stars widget, read-only or interactive depending on context.
+// First Written on: Thursday,16-Jul-2026
+// Edited on       : Thursday,16-Jul-2026
+
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 

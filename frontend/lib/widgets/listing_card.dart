@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : listing_card.dart
+// Description     : Grid card widget showing one listing's photo, badge, title, price and seller.
+// First Written on: Sunday,05-Jul-2026
+// Edited on       : Monday,13-Jul-2026
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../models/listing.dart';

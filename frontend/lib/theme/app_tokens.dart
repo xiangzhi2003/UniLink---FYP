@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : app_tokens.dart
+// Description     : Shared design tokens -- spacing scale and corner-radius constants.
+// First Written on: Tuesday,07-Jul-2026
+// Edited on       : Tuesday,07-Jul-2026
+
 import 'package:flutter/material.dart';
 
 /// Shared spacing scale — use instead of inline `EdgeInsets`/`SizedBox` literals.

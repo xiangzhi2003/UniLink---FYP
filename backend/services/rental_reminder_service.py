@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : rental_reminder_service.py
+# Description     : Scheduled daily job that notifies (in-app + email) buyers whose rental is due back today.
+# First Written on: Saturday,18-Jul-2026
+# Edited on       : Saturday,18-Jul-2026
+
 from datetime import date
 
 from services import email_service, notification_service

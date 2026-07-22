@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : create_listing_screen.dart
+// Description     : Form for creating or editing a listing, including optional AI-assisted field suggestions and photo upload.
+// First Written on: Sunday,05-Jul-2026
+// Edited on       : Wednesday,15-Jul-2026
+
 import 'dart:typed_data';
 
 import 'package:cached_network_image/cached_network_image.dart';

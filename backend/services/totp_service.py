@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : totp_service.py
+# Description     : Generates and verifies rotating TOTP codes for the QR handshake, backed by a per-transaction secret.
+# First Written on: Monday,06-Jul-2026
+# Edited on       : Tuesday,14-Jul-2026
+
 import pyotp
 
 from services.supabase_client import get_service_client

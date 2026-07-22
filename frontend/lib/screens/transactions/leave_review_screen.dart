@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : leave_review_screen.dart
+// Description     : Form for a buyer to rate and review a seller after a completed deal.
+// First Written on: Thursday,16-Jul-2026
+// Edited on       : Thursday,16-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/transaction.dart';

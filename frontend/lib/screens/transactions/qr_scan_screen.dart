@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : qr_scan_screen.dart
+// Description     : Camera-based QR scanner for the TOTP handshake, with a manual-entry fallback.
+// First Written on: Monday,06-Jul-2026
+// Edited on       : Tuesday,07-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../widgets/empty_state.dart';

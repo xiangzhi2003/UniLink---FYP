@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : favorite_provider.dart
+// Description     : Riverpod providers exposing FavoriteService and the signed-in user's favorited listing ids.
+// First Written on: Monday,13-Jul-2026
+// Edited on       : Monday,13-Jul-2026
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/favorite_service.dart';
 import 'auth_provider.dart';

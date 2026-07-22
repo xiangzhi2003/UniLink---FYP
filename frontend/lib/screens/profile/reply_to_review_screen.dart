@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : reply_to_review_screen.dart
+// Description     : Full-screen text composer for a seller's reply to a received review.
+// First Written on: Thursday,16-Jul-2026
+// Edited on       : Thursday,16-Jul-2026
+
 import 'package:flutter/material.dart';
 import '../../theme/app_tokens.dart';
 import '../../widgets/app_button.dart';

@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : main.py
+# Description     : FastAPI application entry point -- configures CORS, registers all routers, and schedules the daily rental-reminder job.
+# First Written on: Friday,03-Jul-2026
+# Edited on       : Saturday,18-Jul-2026
+
 import logging
 from zoneinfo import ZoneInfo
 

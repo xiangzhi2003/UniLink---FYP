@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : chat_service.dart
+// Description     : Wraps Supabase queries/Realtime for conversations and messages, including image upload.
+// First Written on: Monday,06-Jul-2026
+// Edited on       : Wednesday,15-Jul-2026
+
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/supabase_config.dart';

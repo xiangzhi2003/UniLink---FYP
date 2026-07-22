@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : auth_header_scaffold.dart
+// Description     : Shared header + card layout scaffold used by the auth screens (login/register/forgot/reset).
+// First Written on: Friday,03-Jul-2026
+// Edited on       : Tuesday,07-Jul-2026
+
 import 'package:flutter/material.dart';
 import '../theme/app_tokens.dart';
 

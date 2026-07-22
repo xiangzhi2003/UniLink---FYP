@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : transactions_list_screen.dart
+// Description     : 'My Deals' list of every transaction where the user is buyer or seller.
+// First Written on: Monday,06-Jul-2026
+// Edited on       : Thursday,16-Jul-2026
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

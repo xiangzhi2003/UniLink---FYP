@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : recovery_flag.dart
+// Description     : Persists a flag marking an in-progress password reset across app reloads.
+// First Written on: Saturday,04-Jul-2026
+// Edited on       : Saturday,04-Jul-2026
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Remembers "a password reset was started but not finished" across a full

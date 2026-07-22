@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : seller_report_service.py
+# Description     : Computes a seller's real sales statistics and builds the grounded prompt for the AI-narrated sales report.
+# First Written on: Saturday,18-Jul-2026
+# Edited on       : Saturday,18-Jul-2026
+
 import calendar
 from datetime import date
 

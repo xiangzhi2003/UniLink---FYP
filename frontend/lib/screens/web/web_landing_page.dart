@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : web_landing_page.dart
+// Description     : Marketing landing page shown when the app is opened in a web browser.
+// First Written on: Tuesday,07-Jul-2026
+// Edited on       : Tuesday,07-Jul-2026
+
 import 'package:flutter/material.dart';
 import '../../theme/app_tokens.dart';
 import '../../widgets/app_button.dart';

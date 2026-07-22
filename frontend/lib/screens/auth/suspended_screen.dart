@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : suspended_screen.dart
+// Description     : Screen shown instead of the app to a suspended account, with sign-out as the only action.
+// First Written on: Friday,17-Jul-2026
+// Edited on       : Friday,17-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';

@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : error_messages.dart
+// Description     : Converts raw Supabase/auth exceptions into friendly, actionable error messages for students.
+// First Written on: Friday,03-Jul-2026
+// Edited on       : Wednesday,15-Jul-2026
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Turns a Supabase (or other) exception into a message a student can act on,

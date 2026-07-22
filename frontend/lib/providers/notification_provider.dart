@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : notification_provider.dart
+// Description     : Riverpod providers exposing NotificationService and the live unread-notification count.
+// First Written on: Tuesday,14-Jul-2026
+// Edited on       : Wednesday,15-Jul-2026
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/notification_service.dart';
 import 'auth_provider.dart';

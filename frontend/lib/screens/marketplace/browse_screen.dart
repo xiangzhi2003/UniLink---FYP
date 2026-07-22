@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : browse_screen.dart
+// Description     : Marketplace browse grid with category filters and semantic + keyword search.
+// First Written on: Sunday,05-Jul-2026
+// Edited on       : Thursday,16-Jul-2026
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';

@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : chat_detail_screen.dart
+// Description     : One-on-one conversation screen: message history, text/image sending, and shared listing cards.
+// First Written on: Monday,06-Jul-2026
+// Edited on       : Wednesday,15-Jul-2026
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

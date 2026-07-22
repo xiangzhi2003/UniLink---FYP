@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : notification.dart
+// Description     : Data model for an in-app AppNotification shown to a user.
+// First Written on: Tuesday,14-Jul-2026
+// Edited on       : Tuesday,14-Jul-2026
+
 class AppNotification {
   final String id;
   final String type;

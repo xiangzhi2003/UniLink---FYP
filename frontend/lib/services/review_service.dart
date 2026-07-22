@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : review_service.dart
+// Description     : Wraps Supabase queries for submitting and fetching reviews.
+// First Written on: Thursday,16-Jul-2026
+// Edited on       : Thursday,16-Jul-2026
+
 import '../config/supabase_config.dart';
 import '../models/review.dart';
 

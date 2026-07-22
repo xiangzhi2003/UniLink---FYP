@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : home_shell.dart
+// Description     : Signed-in student's root shell -- bottom navigation across Home/Chat/Sell/My Listings/Profile.
+// First Written on: Friday,03-Jul-2026
+// Edited on       : Wednesday,15-Jul-2026
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/chat_provider.dart';

@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : search.py
+# Description     : Pydantic request/response schemas for the search router (semantic search, listing chatbot, AI listing suggestions).
+# First Written on: Monday,06-Jul-2026
+# Edited on       : Thursday,16-Jul-2026
+
 from pydantic import BaseModel
 
 

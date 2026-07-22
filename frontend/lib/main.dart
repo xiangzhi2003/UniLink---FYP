@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : main.dart
+// Description     : Application entry point -- initializes Supabase, sets up theming, and launches AuthGate as the root widget.
+// First Written on: Friday,03-Jul-2026
+// Edited on       : Tuesday,14-Jul-2026
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

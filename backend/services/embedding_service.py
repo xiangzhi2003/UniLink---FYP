@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : embedding_service.py
+# Description     : Wraps Gemini embeddings and Pinecone upsert/query/delete for listing and knowledge-base search vectors.
+# First Written on: Monday,06-Jul-2026
+# Edited on       : Friday,17-Jul-2026
+
 import os
 
 from google import genai

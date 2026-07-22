@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : supabase_config.dart
+// Description     : Initializes and exposes the global Supabase client, loading credentials from .env.
+// First Written on: Friday,03-Jul-2026
+// Edited on       : Saturday,04-Jul-2026
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 

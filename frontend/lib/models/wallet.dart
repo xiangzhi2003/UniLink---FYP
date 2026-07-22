@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : wallet.dart
+// Description     : Data models for WalletEntry (a ledger row) and WalletSummary (balance + history).
+// First Written on: Tuesday,14-Jul-2026
+// Edited on       : Thursday,16-Jul-2026
+
 class WalletEntry {
   final String id;
   final String? transactionId;

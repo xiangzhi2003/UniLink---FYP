@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : reindex.py
+# Description     : One-time backfill script that embeds every existing active listing into Pinecone for semantic search.
+# First Written on: Monday,06-Jul-2026
+# Edited on       : Monday,06-Jul-2026
+
 """One-time backfill: embed every existing active listing into Pinecone.
 
 Listings created before Sprint 3C have no search vector yet. Run this once

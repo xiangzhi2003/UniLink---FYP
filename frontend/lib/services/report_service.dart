@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : report_service.dart
+// Description     : Wraps the Supabase insert for a user-filed listing/user report.
+// First Written on: Friday,17-Jul-2026
+// Edited on       : Friday,17-Jul-2026
+
 import '../config/supabase_config.dart';
 
 /// User-side reporting: plain insert into the `reports` table (RLS only

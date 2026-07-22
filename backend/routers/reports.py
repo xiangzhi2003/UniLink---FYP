@@ -1,3 +1,9 @@
+# Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+# Program Name    : reports.py
+# Description     : HTTP endpoint for a seller's own AI-narrated monthly/yearly sales report.
+# First Written on: Saturday,18-Jul-2026
+# Edited on       : Saturday,18-Jul-2026
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from models.reports import SellerReportResponse

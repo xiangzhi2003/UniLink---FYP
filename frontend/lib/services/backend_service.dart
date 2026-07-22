@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : backend_service.dart
+// Description     : Thin authenticated HTTP client for the FastAPI backend -- wraps every escrow, QR, search, wallet, admin and report endpoint call.
+// First Written on: Saturday,04-Jul-2026
+// Edited on       : Saturday,18-Jul-2026
+
 import 'dart:convert';
 import 'dart:typed_data';
 

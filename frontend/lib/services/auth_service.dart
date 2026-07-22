@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : auth_service.dart
+// Description     : Wraps Supabase Auth calls for sign up, sign in, sign out and auth-state changes.
+// First Written on: Friday,03-Jul-2026
+// Edited on       : Saturday,04-Jul-2026
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/supabase_config.dart';
 

@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : transaction_detail_screen.dart
+// Description     : Detail screen for one deal -- escrow status, QR handshake actions, rental due date, and review/report actions.
+// First Written on: Monday,06-Jul-2026
+// Edited on       : Saturday,18-Jul-2026
+
 import 'dart:async';
 import 'dart:convert';
 

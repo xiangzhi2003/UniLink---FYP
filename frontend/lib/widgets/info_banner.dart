@@ -1,3 +1,9 @@
+// Programmer Name : Mr. Chiang Xiang Zhi, Student, APU, Technology Park Malaysia
+// Program Name    : info_banner.dart
+// Description     : Tinted informational note box used on auth screens.
+// First Written on: Friday,03-Jul-2026
+// Edited on       : Tuesday,07-Jul-2026
+
 import 'package:flutter/material.dart';
 
 /// Tinted note box used on auth screens to reinforce the .edu.my-only
